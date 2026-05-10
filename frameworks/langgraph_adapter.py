@@ -91,7 +91,7 @@ class LangGraphAdapter(BaseFrameworkAdapter):
         # Improved conversion to include parameters with Gemini-specific cleanup
         params = {"type": "OBJECT", "properties": {}, "required": []}
         if lc_tool.args_schema:
-            schema = lc_tool.args_schema.schema()
+            schema = lc_tool.args_schema.model_json_schema()
 
             def clean_schema(s: Any) -> Any:
                 if not isinstance(s, dict):

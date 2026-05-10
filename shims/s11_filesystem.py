@@ -1,6 +1,5 @@
 import logging
 
-logger = logging.getLogger(__name__)
 
 import os
 import shutil
@@ -9,6 +8,8 @@ from typing import List, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
+
+logger = logging.getLogger(__name__)
 
 
 @register_shim("filesystem")

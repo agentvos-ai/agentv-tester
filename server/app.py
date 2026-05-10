@@ -1,30 +1,11 @@
+# ruff: noqa: E402, F401
 import os
 import sys
 import warnings
 from pathlib import Path
-
-# Automatic Path Injection: Ensure project root is in sys.path for direct execution
-root_dir = Path(__file__).parent.parent
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
-
 from typing import Any
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
-
-# Load environment variables from .env if present
-load_dotenv()
-
-# Environment Audit & Purge: Ensure YAML priority by clearing persistent overrides
-active_envs = [k for k in os.environ.keys() if k.startswith("ACTIVE_")]
-for k in active_envs:
-    sys.stderr.write(f"PURGING ENV OVERRIDE: {k}={os.environ[k]}\n")
-    del os.environ[k]
-
-# Suppress noisy upstream deprecations for a clean evaluation environment
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="google.genai")
-warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="jsonschema")
 
 from core.config_loader import ConfigLoader
 from core.registry import (
@@ -37,7 +18,35 @@ from core.registry import (
 from shims.registry import ShimRegistry
 from server.middleware import setup_middleware
 
+# Automatic Path Injection: Ensure project root is in sys.path for direct execution
+root_dir = Path(__file__).parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+# Load environment variables from .env if present
+load_dotenv()
+
+# Environment Audit & Purge: Ensure YAML priority by clearing persistent overrides
+# NOTE: This only purges on first import of the module.
+active_envs = [k for k in os.environ.keys() if k.startswith("ACTIVE_")]
+for k in active_envs:
+    sys.stderr.write(f"PURGING ENV OVERRIDE: {k}={os.environ[k]}\n")
+    del os.environ[k]
+
+# Suppress noisy upstream deprecations for a clean evaluation environment
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="google.genai")
+warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="jsonschema")
+
 # Ensure all plugins are registered by importing their packages
+import llm_providers as _llm_providers
+import frameworks as _frameworks
+import shims as _shims
+
+# Vertical Agents: Trigger registration for all industrial domains
+import verticals.fintech.agents as _fintech_agents
+import verticals.healthcare.agents as _healthcare_agents
+import verticals.telecom.agents as _telecom_agents
 
 
 def get_config() -> Any:

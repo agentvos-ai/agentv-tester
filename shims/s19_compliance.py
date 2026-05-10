@@ -1,10 +1,11 @@
 import logging
 
-logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from shims import BaseShim
+
+logger = logging.getLogger(__name__)
 
 
 @register_shim("compliance")

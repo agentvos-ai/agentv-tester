@@ -42,11 +42,8 @@ class ConfigLoader:
         Loads and merges configuration with environment overrides.
         Follows Section 2: Master Configuration System.
         """
-        # Industrial Hardening: Purge persistent environment overrides to ensure YAML authority
-        for k in list(os.environ.keys()):
-            if k.startswith("ACTIVE_"):
-                del os.environ[k]
-
+        # Industrial Hardening: Configuration is driven by suite.yaml,
+        # but environment variables allow for targeted session overrides.
         loader = cls()
         # Use the provided config_path (relative to CONFIG_DIR or absolute)
         suite = loader._read(config_path)
@@ -63,13 +60,13 @@ class ConfigLoader:
         )
         llm_name = os.environ.get("ACTIVE_LLM", active_block.get("llm", "gemini"))
 
-        # Validation: Ensure the requested framework is actually registered
+        from core.errors import ConfigError
         from core.registry import get_framework_adapter
 
         try:
             get_framework_adapter(framework)
         except Exception as e:
-            raise ValueError(f"Invalid framework configuration: {str(e)}")
+            raise ConfigError(f"Invalid framework configuration: {str(e)}")
 
         vertical_cfg = loader._read(f"verticals/{vertical}.yaml")
         llm_cfg_raw = loader._read(f"llms/{llm_name}.yaml")

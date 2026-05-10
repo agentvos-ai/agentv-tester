@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Any, Generator
+from typing import List, Dict, Any, Generator, Tuple
 from google import genai
 from google.genai import types
 from core.base_llm import BaseLLMProvider

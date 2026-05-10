@@ -1,12 +1,13 @@
 import logging
 
-logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
 from sqlalchemy import create_engine, text
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
+
+logger = logging.getLogger(__name__)
 
 
 @register_shim("database")
