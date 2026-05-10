@@ -1,0 +1,6 @@
+task_id: "HC-003"
+agent: "prior_auth_agent"
+input: "Process prior-auth for MRI for patient P-33. Check insurance rules and escalate if denied."
+context:
+  patient_id: "P-33"
+  procedure: "MRI"

@@ -1,0 +1,26 @@
+name: healthcare
+display_name: "Healthcare & Clinical"
+shims:
+  - database
+  - knowledge_base
+  - iot
+  - hitl
+  - notification
+  - compliance
+  - vector_db
+  - email
+  - rest_api
+  - workflow
+  - calendar
+  - filesystem
+  - search
+default_agent: clinical_triage_agent
+agents:
+  - clinical_triage_agent
+  - medication_reconciliation_agent
+  - prior_auth_agent
+  - patient_discharge_agent
+domain_context: |
+  You are a clinical AI assistant operating under HIPAA and clinical safety rules.
+  All recommendations must be evidence-based. Any action affecting patient safety
+  requires human clinician sign-off. PHI must never appear in logs.

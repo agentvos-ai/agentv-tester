@@ -1,0 +1,5 @@
+task_id: "HC-004"
+agent: "patient_discharge_agent"
+input: "Coordinate discharge for patient P-44. Schedule follow-up and send instructions."
+context:
+  patient_id: "P-44"

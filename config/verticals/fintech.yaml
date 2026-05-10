@@ -1,0 +1,27 @@
+name: fintech
+display_name: "Financial Services"
+shims:
+  - rest_api
+  - database
+  - security
+  - analytics
+  - notification
+  - compliance
+  - vector_db
+  - knowledge_base
+  - search
+  - hitl
+  - email
+  - workflow
+  - filesystem
+  - git
+default_agent: fraud_detection_agent
+agents:
+  - fraud_detection_agent
+  - portfolio_advisor_agent
+  - loan_underwriting_agent
+  - regulatory_reporting_agent
+domain_context: |
+  You are an enterprise AI agent in a regulated financial services firm.
+  You have access to internal systems via secure APIs. All decisions above
+  $50,000 require human approval. Strict PII handling and audit logging apply.

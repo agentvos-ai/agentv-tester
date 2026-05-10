@@ -1,0 +1,5 @@
+model: grok-3
+api_key_env: XAI_API_KEY
+base_url: https://api.x.ai/v1
+extra:
+  openai_compat: true

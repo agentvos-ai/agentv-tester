@@ -1,0 +1,30 @@
+import unittest
+from server.app import create_app
+
+class TestHealthcareIntegration(unittest.TestCase):
+    """
+    End-to-end integration test for the Healthcare vertical.
+    """
+
+    def setUp(self):
+        self.app = create_app()
+        self.client = self.app.test_client()
+
+    def test_clinical_triage_flow(self):
+        payload = {
+            "task_id": "HC-INT-001",
+            "agent": "clinical_triage_agent",
+            "input": "Patient P-11 has heart rate 145 and SpO2 88%. Prioritize and alert.",
+            "context": {"patient_id": "P-11"}
+        }
+
+        response = self.client.post("/execute_task", json=payload)
+        self.assertEqual(response.status_code, 200)
+        
+        data = response.get_json()
+        self.assertEqual(data["status"], "success")
+        # Verify urgency logic in output
+        self.assertIn("assistant", data.get("output", "").lower())
+
+if __name__ == "__main__":
+    unittest.main()

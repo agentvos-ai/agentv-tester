@@ -1,0 +1,6 @@
+task_id: "TC-003"
+agent: "provisioning_agent"
+input: "Activate 5G service for new customer C-99. Verify regional compliance."
+context:
+  customer_id: "C-99"
+  service: "5G"

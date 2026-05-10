@@ -1,0 +1,5 @@
+task_id: "HC-001"
+agent: "clinical_triage_agent"
+input: "Patient P-11 has heart rate 145 and SpO2 88%. Prioritize and alert medical staff."
+context:
+  patient_id: "P-11"

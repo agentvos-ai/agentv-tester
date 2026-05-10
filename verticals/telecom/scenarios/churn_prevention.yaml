@@ -1,0 +1,5 @@
+task_id: "TC-002"
+agent: "churn_prevention_agent"
+input: "Customer C-88 has low engagement and high ticket count. Offer a 20% discount via DM."
+context:
+  customer_id: "C-88"

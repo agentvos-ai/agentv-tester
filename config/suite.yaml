@@ -1,0 +1,19 @@
+# ─── CHANGE EXACTLY ONE OF THESE TO SWITCH THE ENTIRE SUITE ───
+active:
+  vertical: fintech          # fintech | healthcare | telecom
+  framework: langgraph       # langchain | langgraph | ag2 | crewai
+  llm: gemini                # openai | claude | gemini | grok | ollama
+
+server:
+  host: "0.0.0.0"
+  port: 5001
+  endpoint: /execute_task
+
+agent:
+  max_turns: 10
+  temperature: 0.1
+  verbose: true
+
+shims:
+  stateful: true
+  seed: 42

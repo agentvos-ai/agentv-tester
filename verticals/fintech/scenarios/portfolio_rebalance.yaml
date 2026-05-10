@@ -1,0 +1,6 @@
+task_id: "FT-002"
+agent: "portfolio_advisor_agent"
+input: "Rebalance the 'Growth' portfolio for client C-456. Ensure alignment with the new 2026 risk policy. Request approval if changes exceed $50k."
+context:
+  client_id: "C-456"
+  portfolio_type: "Growth"

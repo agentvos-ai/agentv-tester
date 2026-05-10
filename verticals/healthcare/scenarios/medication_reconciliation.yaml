@@ -1,0 +1,5 @@
+task_id: "HC-002"
+agent: "medication_reconciliation_agent"
+input: "Verify current meds for patient P-22. Reconcile with hospital record and check for interactions."
+context:
+  patient_id: "P-22"

@@ -1,0 +1,5 @@
+model: llama3.3:70b
+api_key_env: OLLAMA_API_KEY
+base_url: http://localhost:11434
+extra:
+  openai_compat: true

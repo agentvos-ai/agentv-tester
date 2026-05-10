@@ -1,0 +1,4 @@
+model: gpt-4o
+api_key_env: OPENAI_API_KEY
+extra:
+  organization_env: OPENAI_ORG_ID

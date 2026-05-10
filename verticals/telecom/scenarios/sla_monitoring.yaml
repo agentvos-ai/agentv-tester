@@ -1,0 +1,6 @@
+task_id: "TC-004"
+agent: "sla_monitoring_agent"
+input: "Monitor uptime for enterprise client E-100. If below 99.9%, calculate penalty."
+context:
+  client_id: "E-100"
+  sla_threshold: 99.9

@@ -1,0 +1,6 @@
+task_id: "FT-003"
+agent: "loan_underwriting_agent"
+input: "Process a $250,000 mortgage application for applicant A-789. Check credit score and regional compliance."
+context:
+  applicant_id: "A-789"
+  loan_amount: 250000.0

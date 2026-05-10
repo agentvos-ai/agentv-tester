@@ -1,0 +1,6 @@
+task_id: "FT-004"
+agent: "regulatory_reporting_agent"
+input: "Generate the Q1 2026 AML compliance report and commit it to the main repository."
+context:
+  quarter: "Q1"
+  year: 2026

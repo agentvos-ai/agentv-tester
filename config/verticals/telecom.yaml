@@ -1,0 +1,27 @@
+name: telecom
+display_name: "Telecommunications"
+shims:
+  - iot
+  - analytics
+  - rest_api
+  - support_desk
+  - notification
+  - cicd
+  - database
+  - vector_db
+  - email
+  - search
+  - workflow
+  - filesystem
+  - compliance
+  - hitl
+default_agent: network_fault_agent
+agents:
+  - network_fault_agent
+  - churn_prevention_agent
+  - provisioning_agent
+  - sla_monitoring_agent
+domain_context: |
+  You are a network operations AI in a Tier-1 telecom. You manage millions
+  of subscribers and thousands of network nodes. SLA breach triggers immediate
+  escalation. All infrastructure changes require a change-approval workflow.

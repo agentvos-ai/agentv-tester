@@ -1,0 +1,83 @@
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.*.local
+.venv
+venv/
+ENV/
+env/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Testing & Quality ---
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+htmlcov/
+.pylint.d/
+
+# --- Databases & Logs ---
+*.sqlite
+*.sqlite3
+*.db
+*.log
+logs/
+*.sql
+*.dump
+
+# --- OS Specific ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# --- Suite Specific ---
+scratch/
+tests/results/
+data/raw/
+data/processed/
+artifacts/
+temp/
