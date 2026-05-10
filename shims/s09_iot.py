@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("iot")
 
+@register_shim("iot")
 class IotShim(BaseShim):
     """
     IoT device management and sensor data interface.
@@ -26,7 +27,7 @@ class IotShim(BaseShim):
         """Deterministic reset of the IoT state."""
         self._state["devices"] = {
             "sensor-01": {"type": "temp", "value": 22.5, "status": "ONLINE"},
-            "actuator-01": {"type": "pump", "value": "OFF", "status": "ONLINE"}
+            "actuator-01": {"type": "pump", "value": "OFF", "status": "ONLINE"},
         }
         self._state["subscriptions"] = []
 
@@ -49,13 +50,27 @@ class IotShim(BaseShim):
 
     def subscribe_alert(self, device_id: str, threshold: float) -> str:
         """Subscribes the agent to alerts for a specific sensor threshold."""
-        self._state["subscriptions"].append({"device": device_id, "threshold": threshold})
+        self._state["subscriptions"].append(
+            {"device": device_id, "threshold": threshold}
+        )
         return f"Subscribed to alerts for '{device_id}' at threshold {threshold}."
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
             ("iot_read", self.read_sensor, "Read the current value of an IoT sensor."),
-            ("iot_command", self.send_command, "Send a control command to an IoT device."),
-            ("iot_list", self.list_devices, "List all active IoT devices and their status."),
-            ("iot_subscribe", self.subscribe_alert, "Subscribe to threshold-based alerts for an IoT sensor.")
+            (
+                "iot_command",
+                self.send_command,
+                "Send a control command to an IoT device.",
+            ),
+            (
+                "iot_list",
+                self.list_devices,
+                "List all active IoT devices and their status.",
+            ),
+            (
+                "iot_subscribe",
+                self.subscribe_alert,
+                "Subscribe to threshold-based alerts for an IoT sensor.",
+            ),
         ]

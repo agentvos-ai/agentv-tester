@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent))
 import unittest
 import os
 from server.app import create_app
+
 
 class TestTelecomIntegration(unittest.TestCase):
     """
@@ -22,16 +24,17 @@ class TestTelecomIntegration(unittest.TestCase):
             "task_id": "TC-INT-001",
             "agent": "network_fault_agent",
             "input": "Detect outage in sector SE-5. Trigger repair and open ticket.",
-            "context": {"sector_id": "SE-5"}
+            "context": {"sector_id": "SE-5"},
         }
 
         response = self.client.post("/execute_task", json=payload)
         self.assertEqual(response.status_code, 200)
-        
+
         data = response.get_json()
         self.assertEqual(data["status"], "success")
         # Verify NOC logic in output
         self.assertIn("mock", data.get("output", "").lower())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("calendar")
 
+@register_shim("calendar")
 class CalendarShim(BaseShim):
     """
     Enterprise calendar and scheduling service simulator.
@@ -25,13 +26,20 @@ class CalendarShim(BaseShim):
     def reset(self) -> None:
         """Deterministic reset of the calendar state."""
         self._state["events"] = [
-            {"id": "ev_1", "title": "Team Sync", "start": "2026-05-10T10:00:00", "end": "2026-05-10T11:00:00"}
+            {
+                "id": "ev_1",
+                "title": "Team Sync",
+                "start": "2026-05-10T10:00:00",
+                "end": "2026-05-10T11:00:00",
+            }
         ]
 
     def create_event(self, title: str, start: str, end: str) -> str:
         """Schedules a new calendar event."""
         eid = f"ev_{len(self._state['events']) + 1}"
-        self._state["events"].append({"id": eid, "title": title, "start": start, "end": end})
+        self._state["events"].append(
+            {"id": eid, "title": title, "start": start, "end": end}
+        )
         return f"Event '{title}' scheduled (ID: {eid})."
 
     def list_events(self, date: str) -> List[Dict[str, str]]:
@@ -46,7 +54,9 @@ class CalendarShim(BaseShim):
     def cancel_event(self, event_id: str) -> str:
         """Cancels an existing event."""
         original_count = len(self._state["events"])
-        self._state["events"] = [e for e in self._state["events"] if e["id"] != event_id]
+        self._state["events"] = [
+            e for e in self._state["events"] if e["id"] != event_id
+        ]
         if len(self._state["events"]) == original_count:
             raise ShimError(f"Event ID '{event_id}' not found.")
         return f"Event '{event_id}' cancelled."
@@ -55,6 +65,14 @@ class CalendarShim(BaseShim):
         return [
             ("calendar_create", self.create_event, "Create a new calendar event."),
             ("calendar_list", self.list_events, "List events for a specific date."),
-            ("calendar_find_slot", self.find_free_slot, "Find an available time slot for a meeting."),
-            ("calendar_cancel", self.cancel_event, "Cancel a scheduled calendar event.")
+            (
+                "calendar_find_slot",
+                self.find_free_slot,
+                "Find an available time slot for a meeting.",
+            ),
+            (
+                "calendar_cancel",
+                self.cancel_event,
+                "Cancel a scheduled calendar event.",
+            ),
         ]

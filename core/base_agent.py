@@ -3,13 +3,16 @@ from typing import List, Dict, Any
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
 from core.errors import AgentExecutionError
 
+
 class BaseAgent(ABC):
     """
     Base abstraction for all 12 vertical agents.
     Handles framework-agnostic execution logic.
     """
 
-    def __init__(self, config: Any, framework: BaseFrameworkAdapter, shims: Dict[str, Any]):
+    def __init__(
+        self, config: Any, framework: BaseFrameworkAdapter, shims: Dict[str, Any]
+    ):
         self.config = config
         self.framework = framework
         self._shims = shims
@@ -28,11 +31,11 @@ class BaseAgent(ABC):
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Primary entry point for the evaluation harness.
-        
+        Primary entry point for the agentic external caller.
+
         Args:
             task: {"task_id": str, "input": str, "context": dict}
-            
+
         Returns:
             {"status": "success", "output": str, "tool_calls": list}
         """
@@ -49,7 +52,7 @@ class BaseAgent(ABC):
                 "status": "success",
                 "task_id": task.get("task_id"),
                 "output": result["output"],
-                "tool_calls": result.get("tool_calls", [])
+                "tool_calls": result.get("tool_calls", []),
             }
         except Exception as e:
             raise AgentExecutionError(f"Agent execution failed: {str(e)}") from e

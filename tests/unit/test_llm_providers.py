@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent))
 import unittest
 from llm_providers.mock_provider import MockLLMProvider
 from core.config_loader import LLMConfig
+
 
 class TestLLMProviders(unittest.TestCase):
     """
@@ -13,16 +15,14 @@ class TestLLMProviders(unittest.TestCase):
 
     def setUp(self):
         self.config = LLMConfig(
-            provider="mock",
-            model="test-model",
-            api_key_env="TEST_API_KEY"
+            provider="mock", model="test-model", api_key_env="TEST_API_KEY"
         )
 
     def test_mock_provider_chat(self):
         provider = MockLLMProvider(self.config)
         messages = [{"role": "user", "content": "test message"}]
         response = provider.chat(messages)
-        
+
         self.assertIn("choices", response)
         self.assertEqual(response["choices"][0]["message"]["role"], "assistant")
 
@@ -32,6 +32,7 @@ class TestLLMProviders(unittest.TestCase):
         messages = [{"role": "user", "content": "There is some fraud here"}]
         response = provider.chat(messages)
         self.assertIn("SAR", response["choices"][0]["message"]["content"])
+
 
 if __name__ == "__main__":
     unittest.main()

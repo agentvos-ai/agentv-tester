@@ -2,6 +2,7 @@ from typing import List, Any
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
+
 @register_agent("churn_prevention_agent")
 class ChurnPreventionAgent(BaseAgent):
     """Identifies customers at risk of leaving and offers incentives."""

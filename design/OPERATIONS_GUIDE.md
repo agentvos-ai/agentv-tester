@@ -153,3 +153,97 @@ The suite exposes a production-grade Flask endpoint:
     "tool_calls": []
   }
   ```
+
+## 6. Interactive Evaluation UI
+
+The suite includes a premium, real-time dashboard for manual evaluation and rapid prototyping.
+
+- **Access**: `GET http://localhost:8080/`
+- **Features**:
+    - **Dynamic Agent Selection**: Dropdown automatically populates from the registry.
+    - **Live Execution**: Submit tasks and view formatted JSON results instantly.
+    - **Context Editor**: Built-in JSON editor for injecting metadata into agent runs.
+    - **Dark Mode Aesthetic**: Designed for high-focus industrial engineering environments.
+
+## 7. Agent Invocation Examples
+
+Below are representative examples for invoking various agents across different verticals via the REST API.
+
+### Fintech Examples
+
+**PowerShell (Recommended)**
+```powershell
+# Loan Underwriting
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/execute_task `
+  -ContentType "application/json" `
+  -Body '{
+    "task_id": "L-202",
+    "agent": "loan_underwriting_agent",
+    "input": "Evaluate creditworthiness for applicant ID 9928.",
+    "context": {
+      "user_tier": "gold",
+      "region": "EMEA",
+      "session_id": "sess-4455"
+    }
+  }'
+```
+
+**Windows CMD / curl.exe**
+```bash
+# Fraud Detection (Note the escaped double quotes for Windows CMD)
+curl.exe -X POST http://localhost:8080/execute_task ^
+  -H "Content-Type: application/json" ^
+  -d "{\"task_id\": \"F-101\", \"agent\": \"fraud_detection_agent\", \"input\": \"Analyze recent transactions for user 5501 for anomalies.\"}"
+```
+
+### Healthcare Examples
+
+**PowerShell**
+```powershell
+# Clinical Triage
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/execute_task `
+  -ContentType "application/json" `
+  -Body '{
+    "task_id": "H-303",
+    "agent": "clinical_triage_agent",
+    "input": "Assess patient vitals: BP 140/90, HR 88, Temp 99.1F.",
+    "context": {
+      "department": "emergency",
+      "patient_priority": "high"
+    }
+  }'
+```
+
+**Windows CMD**
+```bash
+# Prior Authorization
+curl.exe -X POST http://localhost:8080/execute_task ^
+  -H "Content-Type: application/json" ^
+  -d "{\"task_id\": \"H-404\", \"agent\": \"prior_auth_agent\", \"input\": \"Validate coverage for MRI procedure under policy XYZ-99.\"}"
+```
+
+### Telecom Examples
+
+**PowerShell**
+```powershell
+# Churn Prevention
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/execute_task `
+  -ContentType "application/json" `
+  -Body '{
+    "task_id": "T-505",
+    "agent": "churn_prevention_agent",
+    "input": "Identify high-risk churn customers in the Northeast region.",
+    "context": {
+      "data_source": "snowflake_v2",
+      "threshold": 0.85
+    }
+  }'
+```
+
+**Windows CMD**
+```bash
+# Network Fault Analysis
+curl.exe -X POST http://localhost:8080/execute_task ^
+  -H "Content-Type: application/json" ^
+  -d "{\"task_id\": \"T-606\", \"agent\": \"network_fault_agent\", \"input\": \"Diagnose packet loss spike in Node 7-B.\"}"
+```

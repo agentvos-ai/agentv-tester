@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("knowledge_base")
 
+@register_shim("knowledge_base")
 class KnowledgeBaseShim(BaseShim):
     """
     Document store with keyword retrieval.
@@ -27,19 +28,22 @@ class KnowledgeBaseShim(BaseShim):
         self._state["docs"] = {
             "fraud_policy_v1": {
                 "topic": "Compliance",
-                "content": "All transactions above $10,000 must be flagged for manual review."
+                "content": "All transactions above $10,000 must be flagged for manual review.",
             },
             "aml_guidelines_2025": {
                 "topic": "Regulatory",
-                "content": "Anti-Money Laundering rules require filing SAR for suspicious activities."
-            }
+                "content": "Anti-Money Laundering rules require filing SAR for suspicious activities.",
+            },
         }
 
     def search(self, query: str) -> List[str]:
         """Search the KB for relevant documents."""
         results = []
         for doc_id, data in self._state["docs"].items():
-            if query.lower() in doc_id.lower() or query.lower() in data["content"].lower():
+            if (
+                query.lower() in doc_id.lower()
+                or query.lower() in data["content"].lower()
+            ):
                 results.append(doc_id)
         return results
 
@@ -58,7 +62,19 @@ class KnowledgeBaseShim(BaseShim):
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
-            ("kb_search", self.search, "Search the internal knowledge base for document IDs."),
-            ("kb_fetch", self.fetch_doc, "Fetch the full content of a specific document."),
-            ("kb_topics", self.list_topics, "List all available knowledge base topics.")
+            (
+                "kb_search",
+                self.search,
+                "Search the internal knowledge base for document IDs.",
+            ),
+            (
+                "kb_fetch",
+                self.fetch_doc,
+                "Fetch the full content of a specific document.",
+            ),
+            (
+                "kb_topics",
+                self.list_topics,
+                "List all available knowledge base topics.",
+            ),
         ]

@@ -2,9 +2,11 @@ import time
 import logging
 from typing import Any
 from flask import request, Response, jsonify
+from werkzeug.exceptions import HTTPException
 from core.errors import AgenticSuiteError
 
 logger = logging.getLogger(__name__)
+
 
 def setup_middleware(app: Any) -> None:
     """Configures global error handlers and request logging."""
@@ -18,6 +20,12 @@ def setup_middleware(app: Any) -> None:
 
     @app.errorhandler(Exception)
     def handle_generic_error(e: Exception) -> Response:
+        if isinstance(e, HTTPException):
+            # Preserve the original status code and description for HTTP exceptions
+            response = jsonify({"status": "error", "message": e.description})
+            response.status_code = e.code
+            return response
+
         logger.error("Unhandled Exception: %s", str(e), exc_info=True)
         response = jsonify({"status": "error", "message": "Internal Server Error"})
         response.status_code = 500
@@ -26,7 +34,7 @@ def setup_middleware(app: Any) -> None:
     @app.before_request
     def log_request_info() -> None:
         logger.info("Request: %s %s", request.method, request.path)
-        request.start_time = time.time() # type: ignore
+        request.start_time = time.time()  # type: ignore
 
     @app.after_request
     def log_response_info(response: Response) -> Response:

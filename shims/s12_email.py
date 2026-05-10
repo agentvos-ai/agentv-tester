@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("email")
 
+@register_shim("email")
 class EmailShim(BaseShim):
     """
     Corporate email service simulator.
@@ -25,8 +26,18 @@ class EmailShim(BaseShim):
     def reset(self) -> None:
         """Deterministic reset of the email state."""
         self._state["inbox"] = [
-            {"id": "msg_1", "from": "boss@corp.com", "subject": "Quarterly Report", "body": "Please review the attached..."},
-            {"id": "msg_2", "from": "hr@corp.com", "subject": "Benefits Update", "body": "New dental plan details..."}
+            {
+                "id": "msg_1",
+                "from": "boss@corp.com",
+                "subject": "Quarterly Report",
+                "body": "Please review the attached...",
+            },
+            {
+                "id": "msg_2",
+                "from": "hr@corp.com",
+                "subject": "Benefits Update",
+                "body": "New dental plan details...",
+            },
         ]
         self._state["sent"] = []
 
@@ -37,7 +48,10 @@ class EmailShim(BaseShim):
 
     def list_inbox(self) -> List[Dict[str, str]]:
         """Lists all emails in the inbox."""
-        return [{"id": m["id"], "from": m["from"], "subject": m["subject"]} for m in self._state["inbox"]]
+        return [
+            {"id": m["id"], "from": m["from"], "subject": m["subject"]}
+            for m in self._state["inbox"]
+        ]
 
     def read_email(self, msg_id: str) -> Dict[str, str]:
         """Reads the full content of a specific email."""
@@ -50,8 +64,13 @@ class EmailShim(BaseShim):
         """Searches the inbox for emails matching a query."""
         results = []
         for m in self._state["inbox"]:
-            if query.lower() in m["subject"].lower() or query.lower() in m["body"].lower():
-                results.append({"id": m["id"], "from": m["from"], "subject": m["subject"]})
+            if (
+                query.lower() in m["subject"].lower()
+                or query.lower() in m["body"].lower()
+            ):
+                results.append(
+                    {"id": m["id"], "from": m["from"], "subject": m["subject"]}
+                )
         return results
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
@@ -59,5 +78,9 @@ class EmailShim(BaseShim):
             ("email_send", self.send_email, "Send an email message."),
             ("email_list", self.list_inbox, "List all messages in the inbox."),
             ("email_read", self.read_email, "Read the full content of an email."),
-            ("email_search", self.search_emails, "Search the inbox for specific emails.")
+            (
+                "email_search",
+                self.search_emails,
+                "Search the inbox for specific emails.",
+            ),
         ]

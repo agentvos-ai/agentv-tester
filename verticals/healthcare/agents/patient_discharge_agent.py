@@ -2,6 +2,7 @@ from typing import List, Any
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
+
 @register_agent("patient_discharge_agent")
 class PatientDischargeAgent(BaseAgent):
     """Orchestrates the patient discharge process."""

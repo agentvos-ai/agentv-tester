@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("workflow")
 
+@register_shim("workflow")
 class WorkflowShim(BaseShim):
     """
     Business Process Management (BPM) simulator.
@@ -34,7 +35,7 @@ class WorkflowShim(BaseShim):
             "status": "IN_PROGRESS",
             "current_step": "START",
             "payload": payload,
-            "escalated": False
+            "escalated": False,
         }
         return wid
 
@@ -64,7 +65,15 @@ class WorkflowShim(BaseShim):
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
             ("wf_start", self.start_workflow, "Start a new business process workflow."),
-            ("wf_status", self.get_workflow_status, "Check the status of an active workflow."),
-            ("wf_complete_task", self.complete_task, "Complete a task and advance the workflow."),
-            ("wf_escalate", self.escalate, "Escalate a workflow for manual review.")
+            (
+                "wf_status",
+                self.get_workflow_status,
+                "Check the status of an active workflow.",
+            ),
+            (
+                "wf_complete_task",
+                self.complete_task,
+                "Complete a task and advance the workflow.",
+            ),
+            ("wf_escalate", self.escalate, "Escalate a workflow for manual review."),
         ]

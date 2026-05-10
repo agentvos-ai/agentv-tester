@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -7,8 +8,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("database")
 
+@register_shim("database")
 class DatabaseShim(BaseShim):
     """
     SQL-like in-memory store (SQLite) with schema per vertical.
@@ -34,9 +35,21 @@ class DatabaseShim(BaseShim):
     def _initialize_schema(self) -> None:
         with self.engine.connect() as conn:
             conn.execute(text("DROP TABLE IF EXISTS accounts"))
-            conn.execute(text("CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance REAL)"))
-            conn.execute(text("INSERT INTO accounts (id, name, balance) VALUES (1, 'Main Operating', 1000000.0)"))
-            conn.execute(text("INSERT INTO accounts (id, name, balance) VALUES (2, 'Fraud Reserve', 50000.0)"))
+            conn.execute(
+                text(
+                    "CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance REAL)"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO accounts (id, name, balance) VALUES (1, 'Main Operating', 1000000.0)"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO accounts (id, name, balance) VALUES (2, 'Fraud Reserve', 50000.0)"
+                )
+            )
             conn.commit()
 
     def query(self, sql: str) -> List[Dict[str, Any]]:
@@ -86,15 +99,21 @@ class DatabaseShim(BaseShim):
 
     def schema_describe(self) -> Dict[str, Any]:
         """Describes the database schema."""
-        return {
-            "accounts": ["id (INT)", "name (TEXT)", "balance (REAL)"]
-        }
+        return {"accounts": ["id (INT)", "name (TEXT)", "balance (REAL)"]}
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
-            ("db_query", self.query, "Execute a SELECT query on the enterprise database."),
+            (
+                "db_query",
+                self.query,
+                "Execute a SELECT query on the enterprise database.",
+            ),
             ("db_insert", self.insert, "Insert a new record into a database table."),
             ("db_update", self.update, "Update existing records in a database table."),
             ("db_delete", self.delete, "Delete records from a database table."),
-            ("db_describe", self.schema_describe, "Describe the schema of the enterprise database.")
+            (
+                "db_describe",
+                self.schema_describe,
+                "Describe the schema of the enterprise database.",
+            ),
         ]

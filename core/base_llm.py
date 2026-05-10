@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Generator
 
+
 class BaseLLMProvider(ABC):
     """Abstract interface for LLM providers."""
 
@@ -12,7 +13,7 @@ class BaseLLMProvider(ABC):
         self,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]] | None = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Synchronous chat completion."""
         pass
@@ -22,7 +23,7 @@ class BaseLLMProvider(ABC):
         self,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]] | None = None,
-        **kwargs
+        **kwargs,
     ) -> Generator[Dict[str, Any], None, None]:
         """Streaming chat completion."""
         pass

@@ -2,6 +2,7 @@ from typing import List, Any
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
+
 @register_agent("sla_monitoring_agent")
 class SlaMonitoringAgent(BaseAgent):
     """Ensures service level agreements are met and calculates penalties."""

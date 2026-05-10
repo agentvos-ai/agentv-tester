@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 # Trigger registration of all framework adapters

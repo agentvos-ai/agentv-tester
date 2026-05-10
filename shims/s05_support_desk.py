@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("support_desk")
 
+@register_shim("support_desk")
 class SupportDeskShim(BaseShim):
     """
     Customer support ticketing system.
@@ -34,7 +35,7 @@ class SupportDeskShim(BaseShim):
             "title": title,
             "description": description,
             "status": "OPEN",
-            "history": []
+            "history": [],
         }
         return tid
 
@@ -60,7 +61,19 @@ class SupportDeskShim(BaseShim):
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
             ("ticket_create", self.create_ticket, "Create a new support ticket."),
-            ("ticket_update", self.update_ticket, "Update an existing support ticket with a comment."),
-            ("ticket_resolve", self.resolve_ticket, "Resolve a support ticket with a final note."),
-            ("ticket_list_open", self.list_open_tickets, "List all current open support tickets.")
+            (
+                "ticket_update",
+                self.update_ticket,
+                "Update an existing support ticket with a comment.",
+            ),
+            (
+                "ticket_resolve",
+                self.resolve_ticket,
+                "Resolve a support ticket with a final note.",
+            ),
+            (
+                "ticket_list_open",
+                self.list_open_tickets,
+                "List all current open support tickets.",
+            ),
         ]

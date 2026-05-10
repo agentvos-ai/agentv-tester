@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Tuple
 
+
 class BaseShim(ABC):
     """
     Base abstraction for all 20 enterprise shims.
@@ -40,6 +41,7 @@ class BaseShim(ABC):
     def get_state(self) -> Dict[str, Any]:
         """Returns the current internal state of the shim."""
         return dict(self._state)
+
 
 # Registration Imports (Must be at bottom to avoid circular dependency)
 # noqa: E402

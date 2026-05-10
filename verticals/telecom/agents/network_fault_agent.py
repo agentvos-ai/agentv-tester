@@ -2,6 +2,7 @@ from typing import List, Any
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
+
 @register_agent("network_fault_agent")
 class NetworkFaultAgent(BaseAgent):
     """Detects, diagnoses, and triggers repairs for network outages."""

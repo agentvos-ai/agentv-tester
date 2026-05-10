@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("git")
 
+@register_shim("git")
 class GitShim(BaseShim):
     """
     In-memory high-fidelity Git repository simulator.
@@ -20,7 +21,9 @@ class GitShim(BaseShim):
 
     @property
     def description(self) -> str:
-        return "Enterprise version control system for managing code and document history."
+        return (
+            "Enterprise version control system for managing code and document history."
+        )
 
     def reset(self) -> None:
         """Deterministic reset of the git environment."""
@@ -29,10 +32,14 @@ class GitShim(BaseShim):
                 "branches": ["main", "dev"],
                 "current_branch": "main",
                 "commits": [
-                    {"hash": "initial", "message": "Initial commit", "files": {"README.md": "# Project Root\n"}}
+                    {
+                        "hash": "initial",
+                        "message": "Initial commit",
+                        "files": {"README.md": "# Project Root\n"},
+                    }
                 ],
                 "files": {"README.md": "# Project Root\n"},
-                "prs": []
+                "prs": [],
             }
         }
 
@@ -46,12 +53,12 @@ class GitShim(BaseShim):
         """Creates a new commit in the current branch."""
         if repo not in self._state["repos"]:
             raise ShimError(f"Repo '{repo}' not found.")
-        
+
         repo_data = self._state["repos"][repo]
         new_commit = {
             "hash": f"commit_{len(repo_data['commits'])}",
             "message": message,
-            "files": files.copy()
+            "files": files.copy(),
         }
         repo_data["commits"].append(new_commit)
         repo_data["files"].update(files)
@@ -65,15 +72,17 @@ class GitShim(BaseShim):
         """Creates a pull request between two branches."""
         if repo not in self._state["repos"]:
             raise ShimError(f"Repo '{repo}' not found.")
-        
+
         pr_id = f"PR-{len(self._state['repos'][repo]['prs']) + 1}"
-        self._state["repos"][repo]["prs"].append({
-            "id": pr_id,
-            "source": source,
-            "target": target,
-            "title": title,
-            "status": "OPEN"
-        })
+        self._state["repos"][repo]["prs"].append(
+            {
+                "id": pr_id,
+                "source": source,
+                "target": target,
+                "title": title,
+                "status": "OPEN",
+            }
+        )
         return pr_id
 
     def get_diff(self, repo: str, commit_a: str, commit_b: str) -> str:
@@ -93,5 +102,9 @@ class GitShim(BaseShim):
             ("git_push", self.push, "Push local changes to a remote repository."),
             ("git_create_pr", self.create_pr, "Create a pull request for code review."),
             ("git_get_diff", self.get_diff, "Get the diff between two commits."),
-            ("git_list_branches", self.list_branches, "List all branches in a repository.")
+            (
+                "git_list_branches",
+                self.list_branches,
+                "List all branches in a repository.",
+            ),
         ]

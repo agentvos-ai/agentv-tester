@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 import os
@@ -9,8 +10,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("filesystem")
 
+@register_shim("filesystem")
 class FilesystemShim(BaseShim):
     """
     Secure enterprise filesystem simulator.
@@ -91,5 +92,5 @@ class FilesystemShim(BaseShim):
             ("fs_write", self.write_file, "Write content to a file."),
             ("fs_list", self.list_dir, "List the contents of a directory."),
             ("fs_move", self.move, "Move a file or directory."),
-            ("fs_delete", self.delete, "Delete a file or directory.")
+            ("fs_delete", self.delete, "Delete a file or directory."),
         ]

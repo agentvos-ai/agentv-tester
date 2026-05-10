@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("analytics")
 
+@register_shim("analytics")
 class AnalyticsShim(BaseShim):
     """
     Enterprise analytics and reporting simulator.
@@ -26,7 +27,7 @@ class AnalyticsShim(BaseShim):
         """Deterministic reset of the analytics data."""
         self._state["metrics"] = {
             "churn_rate": [0.05, 0.04, 0.06],
-            "nps_score": [72, 75, 74]
+            "nps_score": [72, 75, 74],
         }
         self._state["reports"] = []
 
@@ -40,7 +41,9 @@ class AnalyticsShim(BaseShim):
         """Generates a summary report for multiple metrics."""
         report_id = f"REP-{len(self._state['reports']) + 1}"
         summary = {m: self.query_metrics(m) for m in metric_ids}
-        self._state["reports"].append({"id": report_id, "title": title, "data": summary})
+        self._state["reports"].append(
+            {"id": report_id, "title": title, "data": summary}
+        )
         return f"Report '{title}' generated with ID: {report_id}."
 
     def get_kpi(self, kpi_name: str) -> float:
@@ -58,8 +61,20 @@ class AnalyticsShim(BaseShim):
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
-            ("analytics_query", self.query_metrics, "Query historical data for a specific metric."),
-            ("analytics_report", self.create_report, "Generate a performance report for a set of metrics."),
+            (
+                "analytics_query",
+                self.query_metrics,
+                "Query historical data for a specific metric.",
+            ),
+            (
+                "analytics_report",
+                self.create_report,
+                "Generate a performance report for a set of metrics.",
+            ),
             ("analytics_kpi", self.get_kpi, "Calculate an enterprise KPI."),
-            ("analytics_forecast", self.forecast, "Generate a forecast for a metric based on historical data.")
+            (
+                "analytics_forecast",
+                self.forecast,
+                "Generate a forecast for a metric based on historical data.",
+            ),
         ]

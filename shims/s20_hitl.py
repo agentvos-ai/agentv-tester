@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple
@@ -6,8 +7,8 @@ from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
-@register_shim("hitl")
 
+@register_shim("hitl")
 class HitlShim(BaseShim):
     """
     Human-in-the-Loop (HITL) simulator.
@@ -33,7 +34,7 @@ class HitlShim(BaseShim):
             "desc": task_desc,
             "context": context,
             "status": "PENDING",
-            "decision": None
+            "decision": None,
         }
         return rid
 
@@ -41,16 +42,16 @@ class HitlShim(BaseShim):
         """Checks the status and final decision of a review request."""
         if request_id not in self._state["requests"]:
             raise ShimError(f"Request ID '{request_id}' not found.")
-        
+
         req = self._state["requests"][request_id]
-        
+
         # Simulation: Require 3 checks before transition (simulates async delay)
         req["check_count"] = req.get("check_count", 0) + 1
-        
+
         if req["status"] == "PENDING" and req["check_count"] >= 3:
             req["status"] = "APPROVED"
             req["decision"] = "Manual review completed: Action approved."
-            
+
         return req
 
     def submit_human_decision(self, request_id: str, decision: str) -> str:
@@ -63,7 +64,19 @@ class HitlShim(BaseShim):
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
-            ("hitl_request", self.request_human_review, "Request manual human review for a complex task."),
-            ("hitl_status", self.get_review_status, "Check the current status and decision of a review request."),
-            ("hitl_submit", self.submit_human_decision, "Submit a manual decision for a review request.")
+            (
+                "hitl_request",
+                self.request_human_review,
+                "Request manual human review for a complex task.",
+            ),
+            (
+                "hitl_status",
+                self.get_review_status,
+                "Check the current status and decision of a review request.",
+            ),
+            (
+                "hitl_submit",
+                self.submit_human_decision,
+                "Submit a manual decision for a review request.",
+            ),
         ]

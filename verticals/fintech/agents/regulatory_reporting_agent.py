@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
+
 @register_agent("regulatory_reporting_agent")
 class RegulatoryReportingAgent(BaseAgent):
     """Extracts data, assembles report, versions via git, emails regulator, files compliance record."""
@@ -13,7 +14,14 @@ You extract data from databases, assemble reports in the filesystem, version the
 
     def get_tool_specs(self) -> List[Dict[str, Any]]:
         tools = []
-        for shim_name in ["database", "filesystem", "compliance", "email", "analytics", "git"]:
+        for shim_name in [
+            "database",
+            "filesystem",
+            "compliance",
+            "email",
+            "analytics",
+            "git",
+        ]:
             if shim_name in self._shims:
                 tools.extend(self._shims[shim_name].get_tool_specs())
         return tools

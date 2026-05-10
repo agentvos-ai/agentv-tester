@@ -2,9 +2,10 @@ from typing import Any, Dict, List, Tuple
 from shims import BaseShim
 from core.registry import get_shim_class
 
+
 class ShimRegistry:
     """Manages active shims with hot-swap support."""
-    
+
     def __init__(self, enabled_shims: List[str], seed: int = 42):
         self._seed = seed
         self._enabled_names = enabled_shims

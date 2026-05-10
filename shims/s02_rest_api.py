@@ -1,12 +1,13 @@
 import logging
+
 logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any, Tuple, Optional
 from core.registry import register_shim
 from shims import BaseShim
 
-@register_shim("rest_api")
 
+@register_shim("rest_api")
 class RestApiShim(BaseShim):
     """
     Generic HTTP API simulator with configurable response fixtures.
@@ -29,20 +30,25 @@ class RestApiShim(BaseShim):
             },
             "/v1/transactions": {
                 "GET": {"status": 200, "body": []},
-                "POST": {"status": 201, "body": {"id": "tx_123", "status": "success"}}
-            }
+                "POST": {"status": 201, "body": {"id": "tx_123", "status": "success"}},
+            },
         }
 
-    def _request(self, method: str, url: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _request(
+        self, method: str, url: str, payload: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Generic request handler."""
         logger.info("REST: Calling %s %s", method, url)
         endpoint = self._state["endpoints"].get(url)
         if not endpoint or method not in endpoint:
-            return {"status": 404, "error": f"Endpoint '{url}' with method '{method}' not found."}
-        
+            return {
+                "status": 404,
+                "error": f"Endpoint '{url}' with method '{method}' not found.",
+            }
+
         # Simulate logic for POST/PUT/PATCH
         if method in ["POST", "PUT", "PATCH"] and url == "/v1/transactions" and payload:
-             self._state["endpoints"]["/v1/transactions"]["GET"]["body"].append(payload)
+            self._state["endpoints"]["/v1/transactions"]["GET"]["body"].append(payload)
 
         return endpoint[method]
 
@@ -72,5 +78,5 @@ class RestApiShim(BaseShim):
             ("api_post", self.post, "Perform a POST request with a payload."),
             ("api_put", self.put, "Perform a PUT request to update a resource."),
             ("api_delete", self.delete, "Perform a DELETE request."),
-            ("api_patch", self.patch, "Perform a PATCH request for partial updates.")
+            ("api_patch", self.patch, "Perform a PATCH request for partial updates."),
         ]

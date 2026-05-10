@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from core.base_llm import BaseLLMProvider
 from core.registry import register_llm
 
+
 @register_llm("mock")
 class MockLLMProvider(BaseLLMProvider):
     """
@@ -13,10 +14,10 @@ class MockLLMProvider(BaseLLMProvider):
         self,
         messages: List[Dict[str, str]],
         tools: List[Dict[str, Any]] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         last_msg = messages[-1]["content"].lower()
-        
+
         # Simple rule-based mock
         if "fraud" in last_msg:
             content = "I have checked the transaction and it looks suspicious. I will file a SAR."
@@ -24,14 +25,10 @@ class MockLLMProvider(BaseLLMProvider):
             content = "Mock response from the AI assistant."
 
         return {
-            "choices": [{
-                "message": {
-                    "role": "assistant",
-                    "content": content,
-                    "tool_calls": []
-                }
-            }],
-            "usage": {"total_tokens": 10}
+            "choices": [
+                {"message": {"role": "assistant", "content": content, "tool_calls": []}}
+            ],
+            "usage": {"total_tokens": 10},
         }
 
     def stream(self, messages, tools=None, **kwargs):

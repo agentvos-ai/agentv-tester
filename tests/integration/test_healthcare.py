@@ -1,9 +1,11 @@
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent))
 import unittest
 import os
 from server.app import create_app
+
 
 class TestHealthcareIntegration(unittest.TestCase):
     """
@@ -22,16 +24,17 @@ class TestHealthcareIntegration(unittest.TestCase):
             "task_id": "HC-INT-001",
             "agent": "clinical_triage_agent",
             "input": "Patient P-11 has heart rate 145 and SpO2 88%. Prioritize and alert.",
-            "context": {"patient_id": "P-11"}
+            "context": {"patient_id": "P-11"},
         }
 
         response = self.client.post("/execute_task", json=payload)
         self.assertEqual(response.status_code, 200)
-        
+
         data = response.get_json()
         self.assertEqual(data["status"], "success")
         # Verify urgency logic in output
         self.assertIn("assistant", data.get("output", "").lower())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,7 @@ from typing import List, Any
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
+
 @register_agent("clinical_triage_agent")
 class ClinicalTriageAgent(BaseAgent):
     """Analyzes patient vitals and symptoms to prioritize care."""

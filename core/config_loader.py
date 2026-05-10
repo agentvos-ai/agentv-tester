@@ -1,9 +1,9 @@
 import os
-import sys
 import yaml
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
+
 
 @dataclass(frozen=True)
 class LLMConfig:
@@ -13,12 +13,14 @@ class LLMConfig:
     base_url: str | None = None
     extra: Dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass(frozen=True)
 class VerticalConfig:
     name: str
     shims: List[str]
     agents: List[str]
     scenarios: List[str] = field(default_factory=list)
+
 
 @dataclass(frozen=True)
 class SuiteConfig:
@@ -28,6 +30,7 @@ class SuiteConfig:
     llms: Dict[str, LLMConfig]
     verticals: Dict[str, VerticalConfig]
     seed: int = 42
+
 
 class ConfigLoader:
     BASE_DIR = Path(__file__).parent.parent
@@ -47,17 +50,22 @@ class ConfigLoader:
         loader = cls()
         # Use the provided config_path (relative to CONFIG_DIR or absolute)
         suite = loader._read(config_path)
-        
+
         # Determine active dimensions (ENV overrides YAML)
         active_block = suite.get("active", {})
-        
+
         # Now environment variables are purged, so we only get them if they are set EXPLICITLY for this call
-        vertical = os.environ.get("ACTIVE_VERTICAL", active_block.get("vertical", "fintech"))
-        framework = os.environ.get("ACTIVE_FRAMEWORK", active_block.get("framework", "langgraph"))
+        vertical = os.environ.get(
+            "ACTIVE_VERTICAL", active_block.get("vertical", "fintech")
+        )
+        framework = os.environ.get(
+            "ACTIVE_FRAMEWORK", active_block.get("framework", "langgraph")
+        )
         llm_name = os.environ.get("ACTIVE_LLM", active_block.get("llm", "gemini"))
 
         # Validation: Ensure the requested framework is actually registered
         from core.registry import get_framework_adapter
+
         try:
             get_framework_adapter(framework)
         except Exception as e:
@@ -79,13 +87,17 @@ class ConfigLoader:
             active_framework=framework,
             active_llm=llm_name,
             llms={llm_name: llm},
-            verticals={vertical: VerticalConfig(
-                name=vertical,
-                shims=vertical_cfg.get("shims", []),
-                agents=vertical_cfg.get("agents", []),
-                scenarios=vertical_cfg.get("scenarios", [])
-            )},
-            seed=int(os.environ.get("SUITE_SEED", suite.get("shims", {}).get("seed", 42)))
+            verticals={
+                vertical: VerticalConfig(
+                    name=vertical,
+                    shims=vertical_cfg.get("shims", []),
+                    agents=vertical_cfg.get("agents", []),
+                    scenarios=vertical_cfg.get("scenarios", []),
+                )
+            },
+            seed=int(
+                os.environ.get("SUITE_SEED", suite.get("shims", {}).get("seed", 42))
+            ),
         )
 
     def _read(self, rel_path: str) -> Dict[str, Any]:
