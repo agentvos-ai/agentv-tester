@@ -1,6 +1,6 @@
-# ─── CHANGE EXACTLY ONE OF THESE TO SWITCH THE ENTIRE SUITE ───
+# CHANGE EXACTLY ONE OF THESE TO SWITCH THE ENTIRE SUITE
 active:
-  vertical: fintech          # fintech | healthcare | telecom
+  vertical: fintech       # fintech | healthcare | telecom
   framework: langgraph       # langchain | langgraph | ag2 | crewai
   llm: gemini                # openai | claude | gemini | grok | ollama
 

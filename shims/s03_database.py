@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from sqlalchemy import create_engine, text
 from core.registry import register_shim
@@ -5,6 +8,7 @@ from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("database")
+
 class DatabaseShim(BaseShim):
     """
     SQL-like in-memory store (SQLite) with schema per vertical.
@@ -12,9 +16,8 @@ class DatabaseShim(BaseShim):
     """
 
     def __init__(self, seed: int = 42):
-        super().__init__(seed)
         self.engine = create_engine("sqlite:///:memory:", echo=False)
-        self._initialize_schema()
+        super().__init__(seed)
 
     @property
     def name(self) -> str:
@@ -32,8 +35,8 @@ class DatabaseShim(BaseShim):
         with self.engine.connect() as conn:
             conn.execute(text("DROP TABLE IF EXISTS accounts"))
             conn.execute(text("CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance REAL)"))
-            conn.execute(text("INSERT INTO accounts (name, balance) VALUES (1, 'Main Operating', 1000000.0)"))
-            conn.execute(text("INSERT INTO accounts (name, balance) VALUES (2, 'Fraud Reserve', 50000.0)"))
+            conn.execute(text("INSERT INTO accounts (id, name, balance) VALUES (1, 'Main Operating', 1000000.0)"))
+            conn.execute(text("INSERT INTO accounts (id, name, balance) VALUES (2, 'Fraud Reserve', 50000.0)"))
             conn.commit()
 
     def query(self, sql: str) -> List[Dict[str, Any]]:

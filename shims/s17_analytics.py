@@ -1,9 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("analytics")
+
 class AnalyticsShim(BaseShim):
     """
     Enterprise analytics and reporting simulator.

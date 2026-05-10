@@ -1,8 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from shims import BaseShim
 
 @register_shim("notification")
+
 class NotificationShim(BaseShim):
     """
     Multi-channel notification service simulator.

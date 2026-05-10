@@ -1,9 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("knowledge_base")
+
 class KnowledgeBaseShim(BaseShim):
     """
     Document store with keyword retrieval.

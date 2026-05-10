@@ -1,9 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("iot")
+
 class IotShim(BaseShim):
     """
     IoT device management and sensor data interface.

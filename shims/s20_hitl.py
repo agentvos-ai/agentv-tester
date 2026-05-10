@@ -1,9 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("hitl")
+
 class HitlShim(BaseShim):
     """
     Human-in-the-Loop (HITL) simulator.
@@ -39,10 +43,13 @@ class HitlShim(BaseShim):
             raise ShimError(f"Request ID '{request_id}' not found.")
         
         req = self._state["requests"][request_id]
-        # Simulation: auto-approve after first check for flow testing
-        if req["status"] == "PENDING":
+        
+        # Simulation: Require 3 checks before transition (simulates async delay)
+        req["check_count"] = req.get("check_count", 0) + 1
+        
+        if req["status"] == "PENDING" and req["check_count"] >= 3:
             req["status"] = "APPROVED"
-            req["decision"] = "Proceed with caution."
+            req["decision"] = "Manual review completed: Action approved."
             
         return req
 

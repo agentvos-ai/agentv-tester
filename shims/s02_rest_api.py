@@ -1,8 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple, Optional
 from core.registry import register_shim
 from shims import BaseShim
 
 @register_shim("rest_api")
+
 class RestApiShim(BaseShim):
     """
     Generic HTTP API simulator with configurable response fixtures.
@@ -31,6 +35,7 @@ class RestApiShim(BaseShim):
 
     def _request(self, method: str, url: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Generic request handler."""
+        logger.info("REST: Calling %s %s", method, url)
         endpoint = self._state["endpoints"].get(url)
         if not endpoint or method not in endpoint:
             return {"status": 404, "error": f"Endpoint '{url}' with method '{method}' not found."}

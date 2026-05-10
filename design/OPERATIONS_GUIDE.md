@@ -1,8 +1,4 @@
-# Operations & Verification Guide
-
-This guide provides exhaustive instructions for the setup, configuration, and verification of the Multi-Vertical Agentic Test Suite.
-
-## 1. Environment Setup
+# Environment Setup
 
 ### Prerequisites
 - Python 3.10+
@@ -22,7 +18,42 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 2. Configuration System
+## 2. Server Operations
+
+### Development Mode
+Use the built-in Flask development server for local debugging and scenario testing.
+```bash
+# Start with default configuration (Fintech/LangGraph/Gemini)
+python server/app.py
+
+# Start with custom dimensions
+ACTIVE_VERTICAL=healthcare ACTIVE_FRAMEWORK=crewai python server/app.py
+```
+
+### Production Mode (Industrial)
+Use the `waitress` WSGI server for high-concurrency evaluation runs. This is the recommended mode for integration with the external harness.
+```bash
+# Start with 4 worker threads on port 8080
+# The server dynamically loads config based on ENV variables
+waitress-serve --port=8080 --threads=4 server.app:create_app
+```
+
+### Health Verification
+Verify the server state and active dimensions:
+```bash
+curl http://localhost:8080/health
+```
+Expected response:
+```json
+{
+  "status": "healthy",
+  "active_llm": "gemini",
+  "active_framework": "langgraph",
+  "active_vertical": "fintech"
+}
+```
+
+## 3. Configuration System
 
 The suite uses a three-tier configuration model defined in `config/`.
 
@@ -65,9 +96,13 @@ grep -r "eval_harness" verticals/
 ```
 
 ### Determinism Check
-Verify that shims reset to identical states using the smoke test:
+Verify that shims reset to identical states using the smoke test. Run from the root directory:
 ```bash
-python tests/smoke/test_all_combos.py
+# Using pytest (recommended)
+pytest tests/smoke/test_all_combos.py
+
+# Using unittest
+python -m unittest tests/smoke/test_all_combos.py
 ```
 
 ## 4. Extensibility Guide

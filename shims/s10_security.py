@@ -1,9 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("security")
+
 class SecurityShim(BaseShim):
     """
     Enterprise security and identity management service.
@@ -38,8 +42,13 @@ class SecurityShim(BaseShim):
 
     def rotate_secret(self, secret_id: str) -> str:
         """Rotates an enterprise secret/credential."""
+        if not secret_id:
+            raise ShimError("Parameter 'secret_id' must be provided.")
+            
         if secret_id not in self._state["secrets"]:
             raise ShimError(f"Secret '{secret_id}' not found.")
+            
+        logger.info("Security: Rotating secret '%s' (value redacted)", secret_id)
         self._state["secrets"][secret_id] = f"new_encrypted_{secret_id}"
         self._state["audit_log"].append({"action": "ROTATE", "secret": secret_id})
         return f"Secret '{secret_id}' rotated successfully."

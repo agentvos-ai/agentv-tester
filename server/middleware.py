@@ -1,7 +1,7 @@
 import time
 import logging
 from typing import Any
-from flask import Request, Response, jsonify
+from flask import request, Response, jsonify
 from core.errors import AgenticSuiteError
 
 logger = logging.getLogger(__name__)
@@ -25,11 +25,11 @@ def setup_middleware(app: Any) -> None:
 
     @app.before_request
     def log_request_info() -> None:
-        logger.info("Request: %s %s", Request.method, Request.path)
-        Request.start_time = time.time() # type: ignore
+        logger.info("Request: %s %s", request.method, request.path)
+        request.start_time = time.time() # type: ignore
 
     @app.after_request
     def log_response_info(response: Response) -> Response:
-        duration = time.time() - getattr(Request, "start_time", time.time())
+        duration = time.time() - getattr(request, "start_time", time.time())
         logger.info("Response: %s (%.2fms)", response.status, duration * 1000)
         return response

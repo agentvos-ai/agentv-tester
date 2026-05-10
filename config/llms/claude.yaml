@@ -1,2 +1,2 @@
-model: claude-sonnet-4-20250514
+model: claude-4-6-sonnet-20230601
 api_key_env: ANTHROPIC_API_KEY

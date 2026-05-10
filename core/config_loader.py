@@ -1,4 +1,5 @@
 import os
+import sys
 import yaml
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,7 @@ class VerticalConfig:
     name: str
     shims: List[str]
     agents: List[str]
+    scenarios: List[str] = field(default_factory=list)
 
 @dataclass(frozen=True)
 class SuiteConfig:
@@ -32,18 +34,34 @@ class ConfigLoader:
     CONFIG_DIR = BASE_DIR / "config"
 
     @classmethod
-    def load(cls, config_path: str = "config/suite.yaml") -> SuiteConfig:
+    def load(cls, config_path: str = "suite.yaml") -> SuiteConfig:
         """
         Loads and merges configuration with environment overrides.
         Follows Section 2: Master Configuration System.
         """
+        # Industrial Hardening: Purge persistent environment overrides to ensure YAML authority
+        for k in list(os.environ.keys()):
+            if k.startswith("ACTIVE_"):
+                del os.environ[k]
+
         loader = cls()
-        suite = loader._read("suite.yaml")
+        # Use the provided config_path (relative to CONFIG_DIR or absolute)
+        suite = loader._read(config_path)
         
         # Determine active dimensions (ENV overrides YAML)
-        vertical = os.environ.get("ACTIVE_VERTICAL", suite.get("active_vertical", "fintech"))
-        framework = os.environ.get("ACTIVE_FRAMEWORK", suite.get("active_framework", "langgraph"))
-        llm_name = os.environ.get("ACTIVE_LLM", suite.get("active_llm", "gemini"))
+        active_block = suite.get("active", {})
+        
+        # Now environment variables are purged, so we only get them if they are set EXPLICITLY for this call
+        vertical = os.environ.get("ACTIVE_VERTICAL", active_block.get("vertical", "fintech"))
+        framework = os.environ.get("ACTIVE_FRAMEWORK", active_block.get("framework", "langgraph"))
+        llm_name = os.environ.get("ACTIVE_LLM", active_block.get("llm", "gemini"))
+
+        # Validation: Ensure the requested framework is actually registered
+        from core.registry import get_framework_adapter
+        try:
+            get_framework_adapter(framework)
+        except Exception as e:
+            raise ValueError(f"Invalid framework configuration: {str(e)}")
 
         vertical_cfg = loader._read(f"verticals/{vertical}.yaml")
         llm_cfg_raw = loader._read(f"llms/{llm_name}.yaml")
@@ -64,7 +82,8 @@ class ConfigLoader:
             verticals={vertical: VerticalConfig(
                 name=vertical,
                 shims=vertical_cfg.get("shims", []),
-                agents=vertical_cfg.get("agents", [])
+                agents=vertical_cfg.get("agents", []),
+                scenarios=vertical_cfg.get("scenarios", [])
             )},
             seed=int(os.environ.get("SUITE_SEED", suite.get("shims", {}).get("seed", 42)))
         )
@@ -73,5 +92,5 @@ class ConfigLoader:
         path = self.CONFIG_DIR / rel_path
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {path}")
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)

@@ -1,8 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from shims import BaseShim
 
 @register_shim("search")
+
 class SearchShim(BaseShim):
     """
     Ranked search simulator for web, enterprise, and news data.

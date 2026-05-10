@@ -1,4 +1,4 @@
-model: llama3.3:70b
+model: llama4
 api_key_env: OLLAMA_API_KEY
 base_url: http://localhost:11434
 extra:

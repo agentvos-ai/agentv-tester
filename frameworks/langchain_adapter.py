@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from langchain.agents import AgentExecutor, create_structured_chat_agent
+from langchain_classic.agents import AgentExecutor, create_structured_chat_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import StructuredTool
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent

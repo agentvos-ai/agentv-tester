@@ -45,7 +45,7 @@ For detailed instructions on setup, configuration, and adding new components, se
    ```
 
 2. **Configure Secrets**:
-   Create a `.env` file with your API keys (e.g., `GEMINI_API_KEY`, `OPENAI_API_KEY`).
+   Create a `.env` file with your API keys (e.g., `GOOGLE_API_KEY`, `OPENAI_API_KEY`).
 
 3. **Run the Suite**:
    ```bash

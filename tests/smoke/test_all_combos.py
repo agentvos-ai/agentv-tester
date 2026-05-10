@@ -1,4 +1,11 @@
 import unittest
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path
+root_dir = Path(__file__).parent.parent.parent
+sys.path.append(str(root_dir))
+
 from server.app import create_app
 
 class TestAllCombinations(unittest.TestCase):

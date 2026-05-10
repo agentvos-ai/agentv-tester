@@ -1,4 +1,8 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
 import unittest
+import os
 from server.app import create_app
 
 class TestHealthcareIntegration(unittest.TestCase):
@@ -7,6 +11,9 @@ class TestHealthcareIntegration(unittest.TestCase):
     """
 
     def setUp(self):
+        # Force Mock LLM for the test
+        os.environ["ACTIVE_LLM"] = "mock"
+        os.environ["ACTIVE_VERTICAL"] = "healthcare"
         self.app = create_app()
         self.client = self.app.test_client()
 

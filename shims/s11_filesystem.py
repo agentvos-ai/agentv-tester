@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import os
 import shutil
 from pathlib import Path
@@ -7,6 +10,7 @@ from core.errors import ShimError
 from shims import BaseShim
 
 @register_shim("filesystem")
+
 class FilesystemShim(BaseShim):
     """
     Secure enterprise filesystem simulator.

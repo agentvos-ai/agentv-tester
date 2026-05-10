@@ -1,8 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from shims import BaseShim
 
 @register_shim("social_media")
+
 class SocialMediaShim(BaseShim):
     """
     Social media platform simulator.
