@@ -29,13 +29,13 @@ ACTIVE_VERTICAL=telecom ACTIVE_FRAMEWORK=ag2 ACTIVE_LLM=openai python server/app
 | Gate | Status | Standard |
 |------|--------|----------|
 | Type safety | ✅ | `mypy --strict` passes |
+| Linting | ✅ | `ruff check .` zero errors |
+| Determinism | ✅ | Seeded `reset()` in all shims |
+| Blindness | ✅ | Zero `eval_harness` leaks in agents |
 
 ## 📖 Documentation
 
 For detailed instructions on setup, configuration, and adding new components, see the [Operations & Verification Guide](design/OPERATIONS_GUIDE.md).
-| Linting | ✅ | `ruff check .` zero errors |
-| Determinism | ✅ | Seeded `reset()` in all shims |
-| Blindness | ✅ | Zero `eval_harness` leaks in agents |
 
 ## 🛠️ Quickstart
 
