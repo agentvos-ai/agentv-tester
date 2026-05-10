@@ -24,57 +24,64 @@ pip install -r requirements.txt
 Use the built-in Flask development server for local debugging and scenario testing.
 ```bash
 # Start with default configuration (Fintech/LangGraph/Gemini)
-python server/app.py
-
-# Start with custom dimensions
+# Start with custom dimensions (Note: Environment overrides take priority at startup)
 ACTIVE_VERTICAL=healthcare ACTIVE_FRAMEWORK=crewai python server/app.py
 ```
+
+> [!TIP]
+> **Live Configuration Reloading**: The server supports zero-downtime configuration updates. Any changes made to `config/suite.yaml` are picked up **instantly** by the next request to `/health` or `/execute_task` without requiring a server restart.
 
 ### Production Mode (Industrial)
 Use the `waitress` WSGI server for high-concurrency evaluation runs. This is the recommended mode for integration with the external harness.
 ```bash
 # Start with 4 worker threads on port 8080
-# The server dynamically loads config based on ENV variables
 waitress-serve --port=8080 --threads=4 server.app:create_app
 ```
 
 ### Health Verification
-Verify the server state and active dimensions:
+Verify the server state and active dimensions. 
+
+> [!IMPORTANT]
+> **PowerShell Users**: Use `curl.exe` or `Invoke-WebRequest -UseBasicParsing` to avoid interactive security prompts.
+
 ```bash
-curl http://localhost:8080/health
+curl.exe http://localhost:8080/health
 ```
+
 Expected response:
 ```json
 {
   "status": "healthy",
   "active_llm": "gemini",
   "active_framework": "langgraph",
-  "active_vertical": "fintech"
+  "active_vertical": {
+    "name": "fintech",
+    "agents": ["fraud_detection_agent", "portfolio_advisor_agent", "..."],
+    "scenarios": []
+  }
 }
 ```
 
-## 3. Configuration System
-
-The suite uses a three-tier configuration model defined in `config/`.
+The suite uses a three-tier configuration model defined in `config/`. All files must be encoded in **UTF-8 (No BOM)** to prevent parsing errors.
 
 ### Tier 1: Suite Defaults (`suite.yaml`)
-Defines the active dimensions and global defaults.
+Defines the active dimensions and global defaults using a nested `active` block.
 ```yaml
-active_vertical: "fintech"
-active_framework: "langgraph"
-active_llm: "gemini"
+active:
+  vertical: "fintech"
+  framework: "langgraph"
+  llm: "gemini"
 ```
 
 ### Tier 2: Dimension Specifics
-- `verticals/*.yaml`: Defines which shims and agents are enabled for a domain.
-- `frameworks/*.yaml`: Defines framework-specific parameters.
-- `llms/*.yaml`: Maps model names to environment variables (e.g., `OPENAI_API_KEY`).
+- `verticals/*.yaml`: Defines which shims, agents, and scenarios are enabled for a domain.
+- `llms/*.yaml`: Maps model names to environment variables (e.g., `GEMINI_API_KEY`).
+- **Frameworks**: Registered dynamically via code adapters; validated at runtime against the `FrameworkRegistry`.
 
-### Tier 3: Environment Overrides
-All configuration keys can be overridden via environment variables using the `ACTIVE_` prefix:
-- `ACTIVE_VERTICAL=healthcare`
-- `ACTIVE_FRAMEWORK=crewai`
-- `ACTIVE_LLM=claude`
+### Tier 3: Environment Isolation
+To ensure the `suite.yaml` remains the "Single Source of Truth", the server **purges persistent environment variables** starting with `ACTIVE_` during every configuration load. 
+
+To override settings via the environment, variables must be set **per-execution** (e.g., `ACTIVE_VERTICAL=telecom python server/app.py`). System-wide or shell-persistent variables are ignored to prevent "ghost" configurations from polluting the evaluation matrix.
 
 ## 3. Verification & Quality Gates
 
