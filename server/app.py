@@ -2,12 +2,18 @@
 import os
 import sys
 import warnings
+# Automatic Path Injection: Ensure project root is in sys.path for direct execution
 from pathlib import Path
+import sys
+root_dir = Path(__file__).parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from core.config_loader import ConfigLoader
 from typing import Any
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 
-from core.config_loader import ConfigLoader
 from core.registry import (
     get_llm_provider,
     get_framework_adapter,
@@ -17,11 +23,6 @@ from core.registry import (
 )
 from shims.registry import ShimRegistry
 from server.middleware import setup_middleware
-
-# Automatic Path Injection: Ensure project root is in sys.path for direct execution
-root_dir = Path(__file__).parent.parent
-if str(root_dir) not in sys.path:
-    sys.path.append(str(root_dir))
 
 # Load environment variables from .env if present
 load_dotenv()
