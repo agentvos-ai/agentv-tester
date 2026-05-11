@@ -132,7 +132,12 @@ class LangGraphRunnable(RunnableAgent):
 
     def run(self, task: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:
         try:
-            initial_state = {"messages": [HumanMessage(content=task)]}
+            full_task = task
+            if context:
+                ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
+                full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
+            
+            initial_state = {"messages": [HumanMessage(content=full_task)]}
             final_state = self.graph.invoke(initial_state)
             last_msg = final_state["messages"][-1]
             return {

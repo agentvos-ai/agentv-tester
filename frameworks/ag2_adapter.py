@@ -115,7 +115,12 @@ class AG2Runnable(RunnableAgent):
 
     def run(self, task: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:
         try:
-            self.user_proxy.initiate_chat(self.assistant, message=task)
+            full_task = task
+            if context:
+                ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
+                full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
+            
+            self.user_proxy.initiate_chat(self.assistant, message=full_task)
             last_msg = self.assistant.last_message()
             return {"output": last_msg.get("content", ""), "tool_calls": []}
         except Exception as e:

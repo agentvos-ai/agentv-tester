@@ -40,8 +40,13 @@ class CrewAIRunnable(RunnableAgent):
         self, task_str: str, context: Dict[str, Any] | None = None
     ) -> Dict[str, Any]:
         try:
+            full_task = task_str
+            if context:
+                ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
+                full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task_str}"
+
             task = Task(
-                description=task_str,
+                description=full_task,
                 agent=self.agent,
                 expected_output="Detailed final response.",
             )

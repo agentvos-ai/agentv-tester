@@ -11,6 +11,7 @@ class LLMConfig:
     model: str
     api_key_env: str
     base_url: str | None = None
+    fallbacks: List[str] = field(default_factory=list)
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -76,14 +77,30 @@ class ConfigLoader:
             model=llm_cfg_raw.get("model", "unknown"),
             api_key_env=llm_cfg_raw.get("api_key_env", f"{llm_name.upper()}_API_KEY"),
             base_url=llm_cfg_raw.get("base_url"),
+            fallbacks=llm_cfg_raw.get("fallbacks", []),
             extra=llm_cfg_raw.get("extra", {}),
         )
+
+        # Load configurations for fallbacks as well
+        llms = {llm_name: llm}
+        for f_name in llm.fallbacks:
+            f_cfg_raw = loader._read(f"llms/{f_name}.yaml")
+            llms[f_name] = LLMConfig(
+                provider=f_name,
+                model=f_cfg_raw.get("model", "unknown"),
+                api_key_env=f_cfg_raw.get(
+                    "api_key_env", f"{f_name.upper()}_API_KEY"
+                ),
+                base_url=f_cfg_raw.get("base_url"),
+                fallbacks=f_cfg_raw.get("fallbacks", []),
+                extra=f_cfg_raw.get("extra", {}),
+            )
 
         return SuiteConfig(
             active_vertical=vertical,
             active_framework=framework,
             active_llm=llm_name,
-            llms={llm_name: llm},
+            llms=llms,
             verticals={
                 vertical: VerticalConfig(
                     name=vertical,

@@ -21,6 +21,7 @@ from core.registry import (
     list_llms,
     list_frameworks,
 )
+from core.base_llm import FallbackLLMProvider
 from shims.registry import ShimRegistry
 from server.middleware import setup_middleware
 
@@ -74,8 +75,40 @@ def create_app() -> Flask:
             ), 400
 
         # Dimension 1: LLM (Loaded per request for config flexibility)
-        llm_cls = get_llm_provider(config.active_llm)
-        llm = llm_cls(config.llms[config.active_llm])
+        active_llm_cfg = config.llms[config.active_llm]
+        
+        def instantiate_provider(name, cfg):
+            cls = get_llm_provider(name)
+            return cls(cfg)
+
+        try:
+            llm = instantiate_provider(config.active_llm, active_llm_cfg)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to instantiate primary LLM {config.active_llm}: {str(e)}")
+            if not active_llm_cfg.fallbacks:
+                raise
+            llm = None
+
+        # Apply fallback logic if configured
+        if active_llm_cfg.fallbacks:
+            fallbacks = []
+            for f_name in active_llm_cfg.fallbacks:
+                try:
+                    f_cfg = config.llms[f_name]
+                    fallbacks.append(instantiate_provider(f_name, f_cfg))
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Failed to instantiate fallback LLM {f_name}: {str(e)}")
+            
+            if llm is None:
+                if not fallbacks:
+                    raise Exception("Primary and all fallback LLMs failed to instantiate.")
+                llm = FallbackLLMProvider(primary=fallbacks[0], fallbacks=fallbacks[1:])
+            else:
+                llm = FallbackLLMProvider(primary=llm, fallbacks=fallbacks)
 
         # Dimension 2: Vertical/Shims (Isolated per request)
         active_vertical = config.verticals[config.active_vertical]

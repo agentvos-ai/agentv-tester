@@ -1,0 +1,3 @@
+model: heuristic-v1
+api_key_env: HEURISTIC_API_KEY # Not actually used
+base_url: local
