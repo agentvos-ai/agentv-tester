@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Generator
 from core.base_llm import BaseLLMProvider
 from core.registry import register_llm
 
+
 @register_llm("heuristic")
 class HeuristicProvider(BaseLLMProvider):
     """
@@ -13,9 +14,18 @@ class HeuristicProvider(BaseLLMProvider):
     def __init__(self, config: Any):
         super().__init__(config)
         self.rules = [
-            (r"(?i)fraud|suspicious|transaction", "Based on local heuristic analysis, this transaction shows potential risk patterns. Recommended action: Flag for manual review."),
-            (r"(?i)patient|medical|diagnosis", "Local medical heuristic: Patient data appears consistent with standard protocols. No immediate anomalies detected."),
-            (r"(?i)network|outage|signal", "Telecom diagnostic heuristic: Signal strength is within acceptable parameters. Check hardware if issues persist."),
+            (
+                r"(?i)fraud|suspicious|transaction",
+                "Based on local heuristic analysis, this transaction shows potential risk patterns. Recommended action: Flag for manual review.",
+            ),
+            (
+                r"(?i)patient|medical|diagnosis",
+                "Local medical heuristic: Patient data appears consistent with standard protocols. No immediate anomalies detected.",
+            ),
+            (
+                r"(?i)network|outage|signal",
+                "Telecom diagnostic heuristic: Signal strength is within acceptable parameters. Check hardware if issues persist.",
+            ),
             (r"(?i)terminate", "Task completed. TERMINATE"),
         ]
 
@@ -26,9 +36,9 @@ class HeuristicProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         last_msg = messages[-1]["content"] if messages else ""
-        
+
         content = "Local fallback: The primary LLM is unavailable. Based on simple heuristics, I recommend checking the manual documentation for this specific case."
-        
+
         for pattern, response in self.rules:
             if re.search(pattern, last_msg):
                 content = response
@@ -36,15 +46,9 @@ class HeuristicProvider(BaseLLMProvider):
 
         return {
             "choices": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": content,
-                        "tool_calls": []
-                    }
-                }
+                {"message": {"role": "assistant", "content": content, "tool_calls": []}}
             ],
-            "usage": {"total_tokens": 0}
+            "usage": {"total_tokens": 0},
         }
 
     def stream(

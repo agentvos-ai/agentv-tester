@@ -62,6 +62,7 @@ class FallbackLLMProvider(BaseLLMProvider):
                 return provider.chat(messages, tools=tools, **kwargs)
             except Exception as e:
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(
                     f"LLM Provider {provider.__class__.__name__} failed: {str(e)}. "
@@ -89,6 +90,7 @@ class FallbackLLMProvider(BaseLLMProvider):
                 return
             except Exception as e:
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(
                     f"LLM Provider {provider.__class__.__name__} failed in stream: {str(e)}. "

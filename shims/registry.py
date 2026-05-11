@@ -33,3 +33,9 @@ class ShimRegistry:
         """Resets every active shim to its deterministic baseline."""
         for shim in self.shims.values():
             shim.reset()
+
+    def shutdown_all(self):
+        """Shuts down all active shims."""
+        for shim in self.shims.values():
+            shim.shutdown()
+        self.shims.clear()

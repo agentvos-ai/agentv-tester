@@ -2,9 +2,10 @@
 import os
 import sys
 import warnings
+
 # Automatic Path Injection: Ensure project root is in sys.path for direct execution
 from pathlib import Path
-import sys
+
 root_dir = Path(__file__).parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
@@ -76,7 +77,7 @@ def create_app() -> Flask:
 
         # Dimension 1: LLM (Loaded per request for config flexibility)
         active_llm_cfg = config.llms[config.active_llm]
-        
+
         def instantiate_provider(name, cfg):
             cls = get_llm_provider(name)
             return cls(cfg)
@@ -85,8 +86,11 @@ def create_app() -> Flask:
             llm = instantiate_provider(config.active_llm, active_llm_cfg)
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to instantiate primary LLM {config.active_llm}: {str(e)}")
+            logger.warning(
+                f"Failed to instantiate primary LLM {config.active_llm}: {str(e)}"
+            )
             if not active_llm_cfg.fallbacks:
                 raise
             llm = None
@@ -100,12 +104,17 @@ def create_app() -> Flask:
                     fallbacks.append(instantiate_provider(f_name, f_cfg))
                 except Exception as e:
                     import logging
+
                     logger = logging.getLogger(__name__)
-                    logger.warning(f"Failed to instantiate fallback LLM {f_name}: {str(e)}")
-            
+                    logger.warning(
+                        f"Failed to instantiate fallback LLM {f_name}: {str(e)}"
+                    )
+
             if llm is None:
                 if not fallbacks:
-                    raise Exception("Primary and all fallback LLMs failed to instantiate.")
+                    raise Exception(
+                        "Primary and all fallback LLMs failed to instantiate."
+                    )
                 llm = FallbackLLMProvider(primary=fallbacks[0], fallbacks=fallbacks[1:])
             else:
                 llm = FallbackLLMProvider(primary=llm, fallbacks=fallbacks)
@@ -115,20 +124,23 @@ def create_app() -> Flask:
         shim_registry = ShimRegistry(enabled_shims=active_vertical.shims)
         shim_registry.reset_all()
 
-        # Dimension 3: Framework (Wired to request-scoped shims)
-        framework_cls = get_framework_adapter(config.active_framework)
-        framework = framework_cls(llm, shim_registry.get_all_tools(), config)
+        try:
+            # Dimension 3: Framework (Wired to request-scoped shims)
+            framework_cls = get_framework_adapter(config.active_framework)
+            framework = framework_cls(llm, shim_registry.get_all_tools(), config)
 
-        # Dynamically load the agent
-        agent_name = data.get("agent", active_vertical.agents[0])
-        agent_cls = get_agent_class(agent_name)
+            # Dynamically load the agent
+            agent_name = data.get("agent", active_vertical.agents[0])
+            agent_cls = get_agent_class(agent_name)
 
-        # Inject framework and isolated shims into agent
-        agent = agent_cls(config, framework, shim_registry.shims)
+            # Inject framework and isolated shims into agent
+            agent = agent_cls(config, framework, shim_registry.shims)
 
-        # Execute
-        result = agent.execute(data)
-        return jsonify(result)
+            # Execute
+            result = agent.execute(data)
+            return jsonify(result)
+        finally:
+            shim_registry.shutdown_all()
 
     @app.route("/health", methods=["GET"])
     def health():

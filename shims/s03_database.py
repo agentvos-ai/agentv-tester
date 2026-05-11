@@ -33,6 +33,10 @@ class DatabaseShim(BaseShim):
         """Deterministic reset of the database state."""
         self._initialize_schema()
 
+    def shutdown(self) -> None:
+        """Dispose of the engine to release the in-memory SQLite database."""
+        self.engine.dispose()
+
     def _initialize_schema(self) -> None:
         with self.engine.connect() as conn:
             conn.execute(text("DROP TABLE IF EXISTS accounts"))

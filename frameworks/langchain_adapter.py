@@ -20,10 +20,10 @@ class LangChainAdapter(BaseFrameworkAdapter):
         # 2. Create Prompt
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", system_prompt + "\nRespond to the user as best you can."),
+                ("system", system_prompt + "\nRespond to the user as best you can.\n\nYou have access to the following tools:\n{tools}\n\nTool Names: {tool_names}"),
                 ("placeholder", "{chat_history}"),
                 ("user", "{input}"),
-                ("placeholder", "{agent_scratchpad}"),
+                ("user", "{agent_scratchpad}"),
             ]
         )
 
@@ -81,7 +81,7 @@ class LangChainRunnable(RunnableAgent):
             if context:
                 ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
-            
+
             result = self.executor.invoke({"input": full_task})
             return {
                 "output": result["output"],

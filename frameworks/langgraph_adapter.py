@@ -136,7 +136,7 @@ class LangGraphRunnable(RunnableAgent):
             if context:
                 ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
-            
+
             initial_state = {"messages": [HumanMessage(content=full_task)]}
             final_state = self.graph.invoke(initial_state)
             last_msg = final_state["messages"][-1]

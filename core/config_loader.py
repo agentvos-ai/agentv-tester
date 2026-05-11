@@ -88,9 +88,7 @@ class ConfigLoader:
             llms[f_name] = LLMConfig(
                 provider=f_name,
                 model=f_cfg_raw.get("model", "unknown"),
-                api_key_env=f_cfg_raw.get(
-                    "api_key_env", f"{f_name.upper()}_API_KEY"
-                ),
+                api_key_env=f_cfg_raw.get("api_key_env", f"{f_name.upper()}_API_KEY"),
                 base_url=f_cfg_raw.get("base_url"),
                 fallbacks=f_cfg_raw.get("fallbacks", []),
                 extra=f_cfg_raw.get("extra", {}),

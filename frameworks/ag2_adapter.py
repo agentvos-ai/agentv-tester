@@ -24,7 +24,6 @@ class SuiteModelClient:
         response = self.llm.chat(messages, tools=tools)
 
         # Convert back to OpenAI-compatible format AutoGen expects
-        # AutoGen expects an object with 'choices' and 'usage'
         from types import SimpleNamespace
 
         choices = []
@@ -71,9 +70,12 @@ class AG2Adapter(BaseFrameworkAdapter):
 
     def build_agent(self, system_prompt: str) -> RunnableAgent:
         # 1. Register our custom client
+        active_llm_cfg = self.config.llms[self.config.active_llm]
+        # In newer AutoGen/AG2 versions, custom models are registered via the class directly
+        # and config_list just needs a placeholder to trigger the client lookup.
         client_config = {
-            "model": self.config.llm.model,
-            "model_client_cls": "SuiteModelClient",
+            "model": active_llm_cfg.model,
+            "api_type": "openai",
         }
 
         assistant = autogen.AssistantAgent(
@@ -81,13 +83,12 @@ class AG2Adapter(BaseFrameworkAdapter):
             system_message=system_prompt,
             llm_config={
                 "config_list": [client_config],
-                "model_client_cls": SuiteModelClient,  # Pass the class reference
             },
         )
 
-        # 2. Setup Bridge (AutoGen requires registering the client instance)
+        # 2. Setup Bridge
         assistant.register_model_client(
-            model_client_cls=SuiteModelClient, llm=self.llm, config=self.config.llm
+            model_client_cls=SuiteModelClient, llm=self.llm, config=active_llm_cfg
         )
 
         # 3. User Proxy and Tools
@@ -119,7 +120,7 @@ class AG2Runnable(RunnableAgent):
             if context:
                 ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
-            
+
             self.user_proxy.initiate_chat(self.assistant, message=full_task)
             last_msg = self.assistant.last_message()
             return {"output": last_msg.get("content", ""), "tool_calls": []}

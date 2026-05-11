@@ -31,6 +31,10 @@ class BaseShim(ABC):
         """Resets shim state to a deterministic baseline."""
         pass
 
+    def shutdown(self) -> None:
+        """Gracefully shuts down the shim, closing any open resources."""
+        pass
+
     @abstractmethod
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         """
