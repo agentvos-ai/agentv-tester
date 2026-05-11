@@ -184,7 +184,53 @@
         textarea {
             font-family: 'JetBrains Mono', monospace;
             resize: vertical;
-            min-height: 120px;
+            min-height: 80px;
+        }
+
+        .scenario-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chip:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .tab.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
         }
 
         .full-width {
@@ -366,7 +412,7 @@
             <div class="grid">
                 <div class="form-group">
                     <label for="task_id">Task ID</label>
-                    <input type="text" id="task_id" placeholder="e.g. task_001" value="task_manual_val">
+                    <input type="text" id="task_id" placeholder="e.g. task_001" value="">
                 </div>
                 <div class="form-group">
                     <label for="agent">Agent Name</label>
@@ -386,17 +432,38 @@
                 </div>
             </div>
 
+            <label>Industrial Scenarios</label>
+            <div class="scenario-chips">
+                {% for scenario in scenarios %}
+                <div class="chip" onclick="loadScenario('{{ scenario.id }}', '{{ scenario.input }}', '{{ scenario.context | tojson | forceescape }}')">
+                    {{ scenario.id | upper }}
+                </div>
+                {% endfor %}
+            </div>
+
             <button id="execute-btn">
                 <span class="btn-text">Execute Task</span>
                 <div class="spinner" id="spinner"></div>
             </button>
 
             <div class="results-area" id="results-area">
-                <div class="results-header">
-                    <label>Execution Output</label>
-                    <span id="status-badge" class="status-badge">Success</span>
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('output')">Response</div>
+                    <div class="tab" onclick="switchTab('trajectory')">Forensic Trajectory</div>
                 </div>
-                <pre id="output-block"></pre>
+                <div id="output-view">
+                    <div class="results-header">
+                        <label>Execution Output</label>
+                        <span id="status-badge" class="status-badge">Success</span>
+                    </div>
+                    <pre id="output-block"></pre>
+                </div>
+                <div id="trajectory-view" style="display: none;">
+                    <div class="results-header">
+                        <label>Trace Parity & Audit</label>
+                    </div>
+                    <pre id="trajectory-block"></pre>
+                </div>
             </div>
         </main>
     </div>
@@ -448,7 +515,15 @@
 
                 // UI State: Done
                 resultsArea.style.display = 'block';
-                outputBlock.textContent = JSON.stringify(data, null, 4);
+                outputBlock.textContent = JSON.stringify(data.output || data, null, 4);
+                
+                // Load trajectory
+                const trajectoryBlock = document.getElementById('trajectory-block');
+                if (data.tool_calls && data.tool_calls.length > 0) {
+                    trajectoryBlock.textContent = JSON.stringify(data.tool_calls, null, 4);
+                } else {
+                    trajectoryBlock.textContent = "No tool calls detected in this trajectory.";
+                }
 
                 if (response.ok) {
                     statusBadge.textContent = 'Success';
@@ -468,6 +543,27 @@
                 btnText.textContent = 'Execute Task';
             }
         });
+
+        function loadScenario(id, input, contextJson) {
+            document.getElementById('task_id').value = id;
+            document.getElementById('input').value = input;
+            document.getElementById('context').value = JSON.stringify(JSON.parse(contextJson), null, 4);
+        }
+
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'output') {
+                document.getElementById('output-view').style.display = 'block';
+                document.getElementById('trajectory-view').style.display = 'none';
+                tabs[0].classList.add('active');
+            } else {
+                document.getElementById('output-view').style.display = 'none';
+                document.getElementById('trajectory-view').style.display = 'block';
+                tabs[1].classList.add('active');
+            }
+        }
         // Environment Configuration
         const llmSelect = document.getElementById('llm-select');
         const frameworkSelect = document.getElementById('framework-select');

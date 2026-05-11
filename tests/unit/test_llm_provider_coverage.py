@@ -33,15 +33,36 @@ def llm_config():
 def test_openai_provider(llm_config):
     with patch("llm_providers.openai_provider.OpenAI") as mock_oa:
         client = mock_oa.return_value
+        provider = OpenAIProvider(llm_config)
+        
+        # 1. Test supports_tool_calling
+        assert provider.supports_tool_calling is True
+
+        # 2. Test chat
         mock_res = MagicMock()
         mock_res.model_dump.return_value = {
             "choices": [{"message": {"role": "assistant", "content": "Hello", "tool_calls": []}}],
             "usage": {"prompt_tokens": 5, "completion_tokens": 5, "total_tokens": 10}
         }
         client.chat.completions.create.return_value = mock_res
-        provider = OpenAIProvider(llm_config)
         res = provider.chat([{"role": "user", "content": "hi"}])
         assert res["choices"][0]["message"]["content"] == "Hello"
+        
+        # 3. Test stream
+        mock_chunk = MagicMock()
+        mock_chunk.model_dump.return_value = {"choices": [{"delta": {"content": " Chunk"}}]}
+        client.chat.completions.create.return_value = [mock_chunk]
+        
+        chunks = list(provider.stream([{"role": "user", "content": "hi"}]))
+        assert len(chunks) == 1
+        assert chunks[0]["choices"][0]["delta"]["content"] == " Chunk"
+
+        # 4. Test error paths
+        client.chat.completions.create.side_effect = Exception("OpenAI Fail")
+        with pytest.raises(LLMProviderError, match="OpenAI chat failed"):
+            provider.chat([])
+        with pytest.raises(LLMProviderError, match="OpenAI stream failed"):
+            list(provider.stream([]))
 
 def test_anthropic_provider_full(llm_config):
     with patch("llm_providers.claude_provider.anthropic.Anthropic") as mock_ant_cls:

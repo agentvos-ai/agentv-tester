@@ -64,6 +64,14 @@ class ConfigLoader:
         from core.errors import ConfigError
         from core.registry import get_framework_adapter
 
+        # Ensure all plugins are registered before validation
+        try:
+            import llm_providers
+            import frameworks
+            import shims
+        except ImportError:
+            pass
+
         try:
             get_framework_adapter(framework)
         except Exception as e:

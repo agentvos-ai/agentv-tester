@@ -42,12 +42,14 @@ def test_config_loader_full_path(tmp_path):
     try:
         # 1. Test standard load with clean environment
         with patch.dict(os.environ, {}, clear=True):
-            config = ConfigLoader.load("suite.yaml")
-            assert config.active_vertical == "fintech"
-            assert config.active_framework == "langgraph"
-            assert config.active_llm == "mock"
-            assert "fallback1" in config.llms
-            assert config.seed == 123
+            # Mock registry check to be independent of available adapters
+            with patch("core.registry.get_framework_adapter"):
+                config = ConfigLoader.load("suite.yaml")
+                assert config.active_vertical == "fintech"
+                assert config.active_framework == "langgraph"
+                assert config.active_llm == "mock"
+                assert "fallback1" in config.llms
+                assert config.seed == 123
         
         # 2. Test ENV overrides
         with patch.dict(os.environ, {
@@ -56,10 +58,12 @@ def test_config_loader_full_path(tmp_path):
             "ACTIVE_LLM": "mock",
             "SUITE_SEED": "999"
         }):
-            config = ConfigLoader.load("suite.yaml")
-            assert config.active_vertical == "health"
-            assert config.active_framework == "langchain"
-            assert config.seed == 999
+            # Mock registry check to allow 'langchain' even if not registered in this env
+            with patch("core.registry.get_framework_adapter"):
+                config = ConfigLoader.load("suite.yaml")
+                assert config.active_vertical == "health"
+                assert config.active_framework == "langchain"
+                assert config.seed == 999
 
     finally:
         ConfigLoader.CONFIG_DIR = old_dir

@@ -125,19 +125,24 @@ def create_app() -> Flask:
         shim_registry.reset_all()
 
         try:
-            # Dimension 3: Framework (Wired to request-scoped shims)
-            framework_cls = get_framework_adapter(config.active_framework)
-            framework = framework_cls(llm, shim_registry.get_all_tools(), config)
-
-            # Dynamically load the agent
+            # Dynamically load the agent class
             agent_name = data.get("agent", active_vertical.agents[0])
             agent_cls = get_agent_class(agent_name)
+            
+            # Step 1: Create agent with a dummy framework to discover tools
+            # (In a real industrial app, we'd use a classmethod for tools)
+            temp_agent = agent_cls(config, None, shim_registry.shims)
+            required_tools = temp_agent.get_tool_specs()
+            
+            # Dimension 3: Framework (Wired to ONLY the tools the agent requested)
+            framework_cls = get_framework_adapter(config.active_framework)
+            framework = framework_cls(llm, required_tools, config)
 
-            # Inject framework and isolated shims into agent
-            agent = agent_cls(config, framework, shim_registry.shims)
+            # Step 2: Inject the real framework back into the agent
+            temp_agent.framework = framework
 
             # Execute
-            result = agent.execute(data)
+            result = temp_agent.execute(data)
             return jsonify(result)
         finally:
             shim_registry.shutdown_all()
@@ -182,6 +187,7 @@ def create_app() -> Flask:
             all_llms=all_llms,
             all_frameworks=all_frameworks,
             all_verticals=all_verticals,
+            scenarios=active_vert.scenarios,
         )
 
     @app.route("/update_config", methods=["POST"])
@@ -228,6 +234,7 @@ def create_app() -> Flask:
     return app
 
 
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

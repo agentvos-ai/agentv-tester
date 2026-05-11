@@ -5,6 +5,7 @@ from langchain_core.tools import StructuredTool
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
 from core.registry import register_framework
 from core.errors import AgentExecutionError
+from core.tool_utils import ToolNormalizer
 
 
 @register_framework("langchain")
@@ -43,32 +44,56 @@ class LangChainAdapter(BaseFrameworkAdapter):
         ]
 
     def _get_lc_llm(self):
-        # This would be a more complex wrapper in a full production system
-        # For now, we'll use a mock wrapper that calls self.llm.chat
         from langchain_core.language_models.chat_models import BaseChatModel
         from langchain_core.outputs import ChatResult, ChatGeneration
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+        
+        adapter_self = self
 
         class SuiteChatModel(BaseChatModel):
-            llm: Any
-
             def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-                # Simple conversion
-                suite_msgs = [
-                    {"role": "user", "content": str(m.content)} for m in messages
-                ]
-                resp = self.llm.chat(suite_msgs)
-                content = resp["choices"][0]["message"]["content"]
-                return ChatResult(
-                    generations=[ChatGeneration(message=AIMessage(content=content))]
-                )
+                suite_msgs = []
+                for m in messages:
+                    if isinstance(m, HumanMessage):
+                        suite_msgs.append({"role": "user", "content": str(m.content)})
+                    elif isinstance(m, AIMessage):
+                        suite_msgs.append({"role": "assistant", "content": str(m.content)})
+                    elif isinstance(m, SystemMessage):
+                        suite_msgs.append({"role": "system", "content": str(m.content)})
+                    elif isinstance(m, ToolMessage):
+                        suite_msgs.append({"role": "tool", "content": str(m.content), "tool_call_id": m.tool_call_id})
+
+                # Normalise tools for the active provider
+                provider_name = adapter_self.config.active_llm
+                if provider_name == "gemini":
+                    suite_tools = ToolNormalizer.to_gemini(adapter_self.shim_tools)
+                elif provider_name == "claude":
+                    suite_tools = ToolNormalizer.to_claude(adapter_self.shim_tools)
+                else:
+                    suite_tools = ToolNormalizer.to_openai(adapter_self.shim_tools)
+
+                resp = adapter_self.llm.chat(suite_msgs, tools=suite_tools)
+                msg = resp["choices"][0]["message"]
+                
+                # Convert suite tool_calls back to LangChain format
+                lc_tool_calls = []
+                for tc in msg.get("tool_calls", []):
+                    if tc.get("type") == "function":
+                        f = tc["function"]
+                        lc_tool_calls.append({
+                            "name": f["name"],
+                            "args": f["arguments"],
+                            "id": tc["id"]
+                        })
+
+                ai_msg = AIMessage(content=msg.get("content") or "", tool_calls=lc_tool_calls)
+                return ChatResult(generations=[ChatGeneration(message=ai_msg)])
 
             @property
             def _llm_type(self):
                 return "suite-llm"
 
-        from langchain_core.messages import AIMessage
-
-        return SuiteChatModel(llm=self.llm)
+        return SuiteChatModel()
 
 
 class LangChainRunnable(RunnableAgent):
@@ -83,9 +108,18 @@ class LangChainRunnable(RunnableAgent):
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
 
             result = self.executor.invoke({"input": full_task})
+            # Extract tool calls from intermediate steps if available
+            tool_calls = []
+            if "intermediate_steps" in result:
+                for action, _ in result["intermediate_steps"]:
+                    tool_calls.append({
+                        "name": action.tool,
+                        "arguments": action.tool_input,
+                    })
+
             return {
                 "output": result["output"],
-                "tool_calls": [],  # LangChain executor handles tool calls internally
+                "tool_calls": tool_calls,
             }
         except Exception as e:
             raise AgentExecutionError(f"LangChain execution failed: {str(e)}") from e

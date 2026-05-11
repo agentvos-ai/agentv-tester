@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from core.errors import ShimError
 from shims.registry import ShimRegistry
 
@@ -32,13 +33,42 @@ def test_rest_api_coverage():
     shim.reset()
     assert shim.name == "rest_api"
     assert shim.description
-    shim.get("/v1/credit_score")
-    # Hit branch 51
-    shim.post("/v1/transactions", {"name": "test"})
-    shim.put("/v1/transactions", {"name": "test2"})
-    shim.delete("/v1/transactions")
-    shim.patch("/v1/transactions", {"x": 1})
-    shim.get("/v1/missing")
+    
+    # 1. GET existing
+    res = shim.get("/v1/credit_score")
+    assert res["status"] == 200
+    
+    # 2. POST (List body)
+    shim.post("/v1/transactions", {"id": "tx_1"})
+    res = shim.get("/v1/transactions")
+    assert len(res["body"]) == 1
+    
+    # 3. POST (New endpoint)
+    shim.post("/v1/new", {"key": "val"})
+    res = shim.get("/v1/new")
+    assert res["body"][0]["key"] == "val"
+    
+    # 4. POST (Update existing dict)
+    shim.post("/v1/credit_score", {"risk": "low"})
+    assert shim.get("/v1/credit_score")["body"]["risk"] == "low"
+    
+    # 5. PUT (Update existing dict)
+    shim.post("/v1/config", {"active": True}) # Creates dict body if payload is dict and it's first
+    # Wait, my POST logic defaults to list if it doesn't exist. 
+    # Let's manually set a dict endpoint for PUT test
+    shim._state["endpoints"]["/v1/settings"] = {"GET": {"status": 200, "body": {"theme": "dark"}}, "PUT": {"status": 200}}
+    shim.put("/v1/settings", {"theme": "light"})
+    assert shim.get("/v1/settings")["body"]["theme"] == "light"
+    
+    # 5. PATCH
+    shim.patch("/v1/settings", {"font": "mono"})
+    assert shim.get("/v1/settings")["body"]["font"] == "mono"
+    
+    # 6. DELETE
+    shim.delete("/v1/settings")
+    assert shim.get("/v1/settings")["status"] == 404
+    
+    # 7. Tool specs
     shim.get_tool_specs()
 
 def test_database_coverage():
@@ -303,12 +333,38 @@ def test_hitl_coverage():
     shim.reset()
     assert shim.name == "hitl"
     assert shim.description
-    rid = shim.request_human_review("Check", {"data": 1})
-    # Hit the check_count >= 3 branch
-    shim.get_review_status(rid)
-    shim.get_review_status(rid)
-    shim.get_review_status(rid)
-    shim.submit_human_decision(rid, "COMPLETED")
+    
+    # 1. NORMAL priority
+    # Mock hash to ensure it doesn't resolve immediately (h % 10 >= 8)
+    with patch("hashlib.md5") as mock_md5:
+        mock_md5.return_value.hexdigest.return_value = "f" * 31 + "8" # h % 16 = 8
+        rid = shim.request_human_review("Normal task", {})
+        # Should take 4 checks
+        for _ in range(3):
+            assert shim.get_review_status(rid)["status"] == "PENDING"
+        res = shim.get_review_status(rid)
+        assert res["status"] in ["APPROVED", "REJECTED"]
+    
+    # 2. HIGH priority (urgent keyword)
+    rid_high = shim.request_human_review("Urgent task", {})
+    assert shim.get_review_status(rid_high)["priority"] == "HIGH"
+    # Should take 2 checks
+    shim.get_review_status(rid_high)
+    res = shim.get_review_status(rid_high)
+    assert res["status"] in ["APPROVED", "REJECTED"]
+    
+    # 3. HIGH priority (context)
+    rid_high2 = shim.request_human_review("Task", {"priority": "high"})
+    assert shim.get_review_status(rid_high2)["priority"] == "HIGH"
+
+    # 4. Manual decision
+    rid_manual = shim.request_human_review("Manual", {})
+    shim.submit_human_decision(rid_manual, "REJECTED")
+    assert shim.get_review_status(rid_manual)["status"] == "REJECTED"
+    
+    # 5. Tool specs
     shim.get_tool_specs()
+    
+    # 6. Errors
     with pytest.raises(ShimError): shim.get_review_status("missing")
     with pytest.raises(ShimError): shim.submit_human_decision("missing", "X")

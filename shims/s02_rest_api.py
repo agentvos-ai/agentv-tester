@@ -40,6 +40,39 @@ class RestApiShim(BaseShim):
     ) -> Dict[str, Any]:
         """Generic request handler."""
         logger.info("REST: Calling %s %s", method, url)
+        # 1. Handle stateful creation/mutation BEFORE validation for simulation flexibility
+        if method == "POST":
+            # Automatically create endpoint if it doesn't exist
+            if url not in self._state["endpoints"]:
+                self._state["endpoints"][url] = {
+                    "GET": {"status": 200, "body": []},
+                    "POST": {"status": 201, "body": {"status": "success"}}
+                }
+            
+            # Update body
+            current_body = self._state["endpoints"][url].get("GET", {}).get("body")
+            if isinstance(current_body, list) and payload:
+                current_body.append(payload)
+            elif isinstance(current_body, dict) and payload:
+                current_body.update(payload)
+                
+        elif method in ["PUT", "PATCH"] and url in self._state["endpoints"] and payload:
+            if "GET" in self._state["endpoints"][url]:
+                current_body = self._state["endpoints"][url]["GET"].get("body")
+                if isinstance(current_body, dict):
+                    current_body.update(payload)
+                else:
+                    self._state["endpoints"][url]["GET"]["body"] = payload
+            # Ensure the method itself is supported in the endpoint map for validation
+            if method not in self._state["endpoints"][url]:
+                 self._state["endpoints"][url][method] = {"status": 200}
+                    
+        elif method == "DELETE" and url in self._state["endpoints"]:
+             self._state["endpoints"][url]["GET"] = {"status": 404, "body": {"error": "Deleted"}}
+             if "DELETE" not in self._state["endpoints"][url]:
+                 self._state["endpoints"][url]["DELETE"] = {"status": 200}
+
+        # 2. Validate endpoint
         endpoint = self._state["endpoints"].get(url)
         if not endpoint or method not in endpoint:
             return {
@@ -47,11 +80,7 @@ class RestApiShim(BaseShim):
                 "error": f"Endpoint '{url}' with method '{method}' not found.",
             }
 
-        # Simulate logic for POST/PUT/PATCH
-        if method in ["POST", "PUT", "PATCH"] and url == "/v1/transactions" and payload:
-            self._state["endpoints"]["/v1/transactions"]["GET"]["body"].append(payload)
-
-        return endpoint[method]
+        return endpoint.get(method, {"status": 200, "body": {"status": "success"}})
 
     def get(self, url: str) -> Dict[str, Any]:
         """Perform a GET request."""

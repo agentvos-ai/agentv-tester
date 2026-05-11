@@ -51,6 +51,17 @@ class SecurityShim(BaseShim):
         )
         return allowed
 
+    def grant_permission(self, identity: str, permission: str) -> str:
+        """Grants a new permission to an identity."""
+        if identity not in self._state["permissions"]:
+            self._state["permissions"][identity] = []
+        if permission not in self._state["permissions"][identity]:
+            self._state["permissions"][identity].append(permission)
+        self._state["audit_log"].append(
+            {"action": "GRANT", "user": identity, "permission": permission}
+        )
+        return f"Permission '{permission}' granted to '{identity}'."
+
     def rotate_secret(self, secret_id: str) -> str:
         """Rotates an enterprise secret/credential."""
         if not secret_id:
@@ -84,6 +95,11 @@ class SecurityShim(BaseShim):
                 "security_rotate",
                 self.rotate_secret,
                 "Rotate an enterprise secret or credential.",
+            ),
+            (
+                "security_grant",
+                self.grant_permission,
+                "Grant a new permission to an identity.",
             ),
             ("security_audit", self.get_audit_log, "Fetch recent security audit logs."),
         ]

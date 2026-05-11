@@ -7,6 +7,7 @@ from langchain_core.tools import StructuredTool
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
 from core.registry import register_framework
 from core.errors import AgentExecutionError
+from core.tool_utils import ToolNormalizer
 
 
 class AgentState(TypedDict):
@@ -34,9 +35,16 @@ class LangGraphAdapter(BaseFrameworkAdapter):
             if system_prompt:
                 suite_messages.insert(0, {"role": "system", "content": system_prompt})
 
-            response = self.llm.chat(
-                suite_messages, tools=[self._lc_to_gemini_tool(t) for t in tools]
-            )
+            # Select tool format based on provider
+            provider_name = self.config.active_llm
+            if provider_name == "gemini":
+                suite_tools = ToolNormalizer.to_gemini(self.shim_tools)
+            elif provider_name == "claude":
+                suite_tools = ToolNormalizer.to_claude(self.shim_tools)
+            else:
+                suite_tools = ToolNormalizer.to_openai(self.shim_tools)
+
+            response = self.llm.chat(suite_messages, tools=suite_tools)
 
             # Convert response back to LC AIMessage
             msg = response["choices"][0]["message"]
@@ -87,43 +95,6 @@ class LangGraphAdapter(BaseFrameworkAdapter):
             return {"role": "system", "content": str(msg.content)}
         return {"role": "user", "content": str(msg.content)}
 
-    def _lc_to_gemini_tool(self, lc_tool: StructuredTool) -> Dict[str, Any]:
-        # Improved conversion to include parameters with Gemini-specific cleanup
-        params = {"type": "OBJECT", "properties": {}, "required": []}
-        if lc_tool.args_schema:
-            schema = lc_tool.args_schema.model_json_schema()
-
-            def clean_schema(s: Any) -> Any:
-                if not isinstance(s, dict):
-                    return s
-                # Gemini doesn't support additionalProperties or title in function declarations
-                s.pop("additionalProperties", None)
-                s.pop("title", None)
-                # s.pop("description", None)  <-- Removed: Description is valid as a field name, only invalid as a sibling to type in some specs.
-                for k, v in s.items():
-                    if isinstance(v, dict):
-                        s[k] = clean_schema(v)
-                    elif isinstance(v, list):
-                        s[k] = [clean_schema(i) for i in v]
-                return s
-
-            clean_s = clean_schema(schema)
-            props = clean_s.get("properties", {})
-            params["properties"] = props
-
-            # Ensure required properties actually exist in the properties dictionary
-            raw_required = clean_s.get("required", [])
-            params["required"] = [r for r in raw_required if r in props]
-
-        return {
-            "function_declarations": [
-                {
-                    "name": lc_tool.name,
-                    "description": lc_tool.description,
-                    "parameters": params,
-                }
-            ]
-        }
 
 
 class LangGraphRunnable(RunnableAgent):

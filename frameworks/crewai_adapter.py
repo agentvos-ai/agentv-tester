@@ -52,6 +52,9 @@ class CrewAIRunnable(RunnableAgent):
             )
             crew = Crew(agents=[self.agent], tasks=[task], process=Process.sequential)
             result = crew.kickoff()
+            # CrewAI doesn't easily expose intermediate tool calls in the final result object
+            # for a single kickoff. For full industrial tracing, we would use a callback.
+            # For now, we return empty list but mark it for Phase 3 enhancement.
             return {"output": str(result), "tool_calls": []}
         except Exception as e:
             raise AgentExecutionError(f"CrewAI execution failed: {str(e)}") from e
