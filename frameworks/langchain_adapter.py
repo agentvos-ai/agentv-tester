@@ -21,7 +21,11 @@ class LangChainAdapter(BaseFrameworkAdapter):
         # 2. Create Prompt
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", system_prompt + "\nRespond to the user as best you can.\n\nYou have access to the following tools:\n{tools}\n\nTool Names: {tool_names}"),
+                (
+                    "system",
+                    system_prompt
+                    + "\nRespond to the user as best you can.\n\nYou have access to the following tools:\n{tools}\n\nTool Names: {tool_names}",
+                ),
                 ("placeholder", "{chat_history}"),
                 ("user", "{input}"),
                 ("user", "{agent_scratchpad}"),
@@ -46,8 +50,13 @@ class LangChainAdapter(BaseFrameworkAdapter):
     def _get_lc_llm(self):
         from langchain_core.language_models.chat_models import BaseChatModel
         from langchain_core.outputs import ChatResult, ChatGeneration
-        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-        
+        from langchain_core.messages import (
+            AIMessage,
+            HumanMessage,
+            SystemMessage,
+            ToolMessage,
+        )
+
         adapter_self = self
 
         class SuiteChatModel(BaseChatModel):
@@ -57,11 +66,19 @@ class LangChainAdapter(BaseFrameworkAdapter):
                     if isinstance(m, HumanMessage):
                         suite_msgs.append({"role": "user", "content": str(m.content)})
                     elif isinstance(m, AIMessage):
-                        suite_msgs.append({"role": "assistant", "content": str(m.content)})
+                        suite_msgs.append(
+                            {"role": "assistant", "content": str(m.content)}
+                        )
                     elif isinstance(m, SystemMessage):
                         suite_msgs.append({"role": "system", "content": str(m.content)})
                     elif isinstance(m, ToolMessage):
-                        suite_msgs.append({"role": "tool", "content": str(m.content), "tool_call_id": m.tool_call_id})
+                        suite_msgs.append(
+                            {
+                                "role": "tool",
+                                "content": str(m.content),
+                                "tool_call_id": m.tool_call_id,
+                            }
+                        )
 
                 # Normalise tools for the active provider
                 provider_name = adapter_self.config.active_llm
@@ -74,19 +91,19 @@ class LangChainAdapter(BaseFrameworkAdapter):
 
                 resp = adapter_self.llm.chat(suite_msgs, tools=suite_tools)
                 msg = resp["choices"][0]["message"]
-                
+
                 # Convert suite tool_calls back to LangChain format
                 lc_tool_calls = []
                 for tc in msg.get("tool_calls", []):
                     if tc.get("type") == "function":
                         f = tc["function"]
-                        lc_tool_calls.append({
-                            "name": f["name"],
-                            "args": f["arguments"],
-                            "id": tc["id"]
-                        })
+                        lc_tool_calls.append(
+                            {"name": f["name"], "args": f["arguments"], "id": tc["id"]}
+                        )
 
-                ai_msg = AIMessage(content=msg.get("content") or "", tool_calls=lc_tool_calls)
+                ai_msg = AIMessage(
+                    content=msg.get("content") or "", tool_calls=lc_tool_calls
+                )
                 return ChatResult(generations=[ChatGeneration(message=ai_msg)])
 
             @property
@@ -112,10 +129,12 @@ class LangChainRunnable(RunnableAgent):
             tool_calls = []
             if "intermediate_steps" in result:
                 for action, _ in result["intermediate_steps"]:
-                    tool_calls.append({
-                        "name": action.tool,
-                        "arguments": action.tool_input,
-                    })
+                    tool_calls.append(
+                        {
+                            "name": action.tool,
+                            "arguments": action.tool_input,
+                        }
+                    )
 
             return {
                 "output": result["output"],

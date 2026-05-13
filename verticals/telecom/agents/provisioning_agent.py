@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -13,9 +13,6 @@ class ProvisioningAgent(BaseAgent):
 Process orders from 'rest_api', update 'database' records, and trigger 'workflow' for activation.
 Verify 'compliance' with regional telecommunications laws."""
 
-    def get_tool_specs(self) -> List[Any]:
-        tools = []
-        for s in ["rest_api", "database", "workflow", "compliance"]:
-            if s in self._shims:
-                tools.extend(self._shims[s].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["rest_api", "database", "workflow", "compliance"]

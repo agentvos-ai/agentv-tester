@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -13,9 +13,6 @@ class SlaMonitoringAgent(BaseAgent):
 Monitor 'analytics' for uptime and latency. 
 If SLAs are breached, calculate 'payment' credits and notify customers via 'email'."""
 
-    def get_tool_specs(self) -> List[Any]:
-        tools = []
-        for s in ["analytics", "payment", "email", "database"]:
-            if s in self._shims:
-                tools.extend(self._shims[s].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["analytics", "payment", "email", "database"]

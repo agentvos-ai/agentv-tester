@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Tuple
 class ToolNormalizer:
     """
     Utility to normalize tool definitions between different LLM provider formats.
-    Ensures that a single suite-native tool definition can be used across 
+    Ensures that a single suite-native tool definition can be used across
     OpenAI, Gemini, and Claude seamlessly.
     """
 

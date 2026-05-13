@@ -1,8 +1,9 @@
 import pytest
 import yaml
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from core.config_loader import ConfigLoader
+
 
 def test_config_loader_full_path(tmp_path):
     # Setup temporary config directory
@@ -14,7 +15,7 @@ def test_config_loader_full_path(tmp_path):
     # Create mock files
     suite_yaml = {
         "active": {"vertical": "fintech", "framework": "langgraph", "llm": "mock"},
-        "shims": {"seed": 123}
+        "shims": {"seed": 123},
     }
     with open(config_dir / "suite.yaml", "w") as f:
         yaml.dump(suite_yaml, f)
@@ -38,7 +39,7 @@ def test_config_loader_full_path(tmp_path):
     # Monkeypatch CONFIG_DIR
     old_dir = ConfigLoader.CONFIG_DIR
     ConfigLoader.CONFIG_DIR = config_dir
-    
+
     try:
         # 1. Test standard load with clean environment
         with patch.dict(os.environ, {}, clear=True):
@@ -50,14 +51,17 @@ def test_config_loader_full_path(tmp_path):
                 assert config.active_llm == "mock"
                 assert "fallback1" in config.llms
                 assert config.seed == 123
-        
+
         # 2. Test ENV overrides
-        with patch.dict(os.environ, {
-            "ACTIVE_VERTICAL": "health",
-            "ACTIVE_FRAMEWORK": "langchain",
-            "ACTIVE_LLM": "mock",
-            "SUITE_SEED": "999"
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "ACTIVE_VERTICAL": "health",
+                "ACTIVE_FRAMEWORK": "langchain",
+                "ACTIVE_LLM": "mock",
+                "SUITE_SEED": "999",
+            },
+        ):
             # Mock registry check to allow 'langchain' even if not registered in this env
             with patch("core.registry.get_framework_adapter"):
                 config = ConfigLoader.load("suite.yaml")
@@ -67,6 +71,7 @@ def test_config_loader_full_path(tmp_path):
 
     finally:
         ConfigLoader.CONFIG_DIR = old_dir
+
 
 def test_config_loader_missing_file():
     with pytest.raises(FileNotFoundError):

@@ -1,6 +1,6 @@
 import logging
-
-
+import os
+import sqlite3
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
@@ -12,9 +12,13 @@ logger = logging.getLogger(__name__)
 @register_shim("support_desk")
 class SupportDeskShim(BaseShim):
     """
-    Customer support ticketing system.
-    Supports full ticket lifecycle.
+    Industrial-grade Support Desk interface.
+    Uses a local SQLite database for ticket persistence and auditability.
     """
+
+    def __init__(self, seed: int = 42):
+        self.db_path = os.path.abspath(".agent_workspace/db/support.db")
+        super().__init__(seed)
 
     @property
     def name(self) -> str:
@@ -22,59 +26,133 @@ class SupportDeskShim(BaseShim):
 
     @property
     def description(self) -> str:
-        return "Enterprise ticketing system for managing customer support requests."
+        return "Interface for managing customer support tickets and cases."
+
+    def setup(self) -> None:
+        """Ensure database and tables exist."""
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS tickets (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    description TEXT,
+                    status TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS comments (
+                    ticket_id TEXT,
+                    content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(ticket_id) REFERENCES tickets(id)
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def shutdown(self) -> None:
+        """Cleanup the database file."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
 
     def reset(self) -> None:
         """Deterministic reset of the support desk state."""
-        self._state["tickets"]: Dict[str, Dict[str, Any]] = {}
+        self.shutdown()
+        self.setup()
+
+        # Seed default tickets
+        self.create_ticket(
+            "Network Outage", "User reports intermittent signal in Zone B."
+        )
 
     def create_ticket(self, title: str, description: str) -> str:
         """Creates a new support ticket."""
-        tid = f"T-{len(self._state['tickets']) + 101}"
-        self._state["tickets"][tid] = {
-            "id": tid,
-            "title": title,
-            "description": description,
-            "status": "OPEN",
-            "history": [],
-        }
-        return tid
+        conn = sqlite3.connect(self.db_path)
+        try:
+            count = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
+            tid = f"TKT-{5000 + count + 1}"
+            conn.execute(
+                "INSERT INTO tickets (id, title, description, status) VALUES (?, ?, ?, ?)",
+                (tid, title, description, "OPEN"),
+            )
+            conn.commit()
+            return tid
+        except Exception as e:
+            raise ShimError(f"Failed to create ticket: {str(e)}")
+        finally:
+            conn.close()
 
-    def update_ticket(self, ticket_id: str, update: str) -> str:
-        """Adds a comment or update to an existing ticket."""
-        if ticket_id not in self._state["tickets"]:
-            raise ShimError(f"Ticket '{ticket_id}' not found.")
-        self._state["tickets"][ticket_id]["history"].append(update)
-        return f"Ticket '{ticket_id}' updated."
+    def update_ticket(self, ticket_id: str, comment: str) -> str:
+        """Adds a comment to an existing ticket."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            # Verify ticket exists
+            res = conn.execute(
+                "SELECT id FROM tickets WHERE id = ?", (ticket_id,)
+            ).fetchone()
+            if not res:
+                raise ShimError(f"Ticket '{ticket_id}' not found.")
 
-    def resolve_ticket(self, ticket_id: str, resolution: str) -> str:
-        """Resolves a support ticket."""
-        if ticket_id not in self._state["tickets"]:
-            raise ShimError(f"Ticket '{ticket_id}' not found.")
-        self._state["tickets"][ticket_id]["status"] = "RESOLVED"
-        self._state["tickets"][ticket_id]["history"].append(f"RESOLVED: {resolution}")
-        return f"Ticket '{ticket_id}' resolved."
+            conn.execute(
+                "INSERT INTO comments (ticket_id, content) VALUES (?, ?)",
+                (ticket_id, comment),
+            )
+            conn.commit()
+            return f"Comment added to ticket '{ticket_id}'."
+        except Exception as e:
+            raise ShimError(f"Failed to update ticket: {str(e)}")
+        finally:
+            conn.close()
+
+    def resolve_ticket(self, ticket_id: str, resolution_note: str) -> str:
+        """Resolves a ticket with a final note."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            # Verify ticket exists
+            res = conn.execute(
+                "SELECT id FROM tickets WHERE id = ?", (ticket_id,)
+            ).fetchone()
+            if not res:
+                raise ShimError(f"Ticket '{ticket_id}' not found.")
+
+            conn.execute(
+                "UPDATE tickets SET status = 'RESOLVED' WHERE id = ?", (ticket_id,)
+            )
+            conn.execute(
+                "INSERT INTO comments (ticket_id, content) VALUES (?, ?)",
+                (ticket_id, f"RESOLUTION: {resolution_note}"),
+            )
+            conn.commit()
+            return f"Ticket '{ticket_id}' resolved."
+        except Exception as e:
+            raise ShimError(f"Failed to resolve ticket: {str(e)}")
+        finally:
+            conn.close()
 
     def list_open_tickets(self) -> List[Dict[str, Any]]:
-        """Lists all tickets with OPEN status."""
-        return [t for t in self._state["tickets"].values() if t["status"] == "OPEN"]
+        """Lists all tickets currently in 'OPEN' status."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT id, title, description, status FROM tickets WHERE status = 'OPEN'"
+            )
+            return [
+                {"id": row[0], "title": row[1], "description": row[2], "status": row[3]}
+                for row in cursor.fetchall()
+            ]
+        except Exception as e:
+            raise ShimError(f"Failed to list tickets: {str(e)}")
+        finally:
+            conn.close()
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
             ("ticket_create", self.create_ticket, "Create a new support ticket."),
-            (
-                "ticket_update",
-                self.update_ticket,
-                "Update an existing support ticket with a comment.",
-            ),
-            (
-                "ticket_resolve",
-                self.resolve_ticket,
-                "Resolve a support ticket with a final note.",
-            ),
-            (
-                "ticket_list_open",
-                self.list_open_tickets,
-                "List all current open support tickets.",
-            ),
+            ("ticket_update", self.update_ticket, "Add a comment to a ticket."),
+            ("ticket_resolve", self.resolve_ticket, "Resolve a support ticket."),
+            ("ticket_list_open", self.list_open_tickets, "List all open tickets."),
         ]

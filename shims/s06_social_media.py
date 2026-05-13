@@ -1,8 +1,9 @@
 import logging
-
-
+import os
+import sqlite3
 from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
+from core.errors import ShimError
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -11,9 +12,13 @@ logger = logging.getLogger(__name__)
 @register_shim("social_media")
 class SocialMediaShim(BaseShim):
     """
-    Social media platform simulator.
-    Supports posting, feed fetching, and direct messaging.
+    Industrial-grade Social Media interface.
+    Uses a local SQLite database for feed and interaction persistence.
     """
+
+    def __init__(self, seed: int = 42):
+        self.db_path = os.path.abspath(".agent_workspace/db/social.db")
+        super().__init__(seed)
 
     @property
     def name(self) -> str:
@@ -21,66 +26,81 @@ class SocialMediaShim(BaseShim):
 
     @property
     def description(self) -> str:
-        return "Interface for interacting with enterprise and public social media platforms."
+        return "Enterprise interface for managing social media posts and engagement."
+
+    def setup(self) -> None:
+        """Ensure database and tables exist."""
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT,
+                    status TEXT DEFAULT 'POSTED',
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS mentions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    author TEXT,
+                    content TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def shutdown(self) -> None:
+        """Cleanup the database file."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
 
     def reset(self) -> None:
         """Deterministic reset of the social media state."""
-        self._state["feed"] = [
-            {
-                "author": "user_1",
-                "content": "Just switched to this bank, love the UI!",
-                "mentions": ["@bank"],
-            },
-            {
-                "author": "news_bot",
-                "content": "Market update: Tech stocks rising.",
-                "mentions": [],
-            },
-        ]
-        self._state["dms"] = []
+        self.shutdown()
+        self.setup()
+
+        # Seed default mentions
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                "INSERT INTO mentions (author, content) VALUES ('@user1', 'Great service!')"
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     def post(self, content: str) -> str:
-        """Create a new public post."""
-        self._state["feed"].insert(
-            0, {"author": "enterprise-agent", "content": content, "mentions": []}
-        )
-        return "Successfully posted message."
-
-    def fetch_feed(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Fetch the latest posts from the social feed."""
-        return self._state["feed"][:limit]
-
-    def send_dm(self, recipient: str, message: str) -> str:
-        """Send a direct message to a user."""
-        self._state["dms"].append(
-            {"to": recipient, "from": "enterprise-agent", "content": message}
-        )
-        return f"Direct message sent to '{recipient}'."
+        """Creates a new social media post."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("INSERT INTO posts (content) VALUES (?)", (content,))
+            conn.commit()
+            return "Post published successfully."
+        except Exception as e:
+            raise ShimError(f"Failed to post: {str(e)}")
+        finally:
+            conn.close()
 
     def get_mentions(self) -> List[Dict[str, Any]]:
-        """Fetch all posts that mention @bank or the agent."""
-        return [p for p in self._state["feed"] if "@bank" in p["mentions"]]
+        """Retrieves recent mentions."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT author, content, timestamp FROM mentions ORDER BY timestamp DESC"
+            )
+            return [
+                {"author": row[0], "content": row[1], "timestamp": row[2]}
+                for row in cursor.fetchall()
+            ]
+        finally:
+            conn.close()
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
-            (
-                "social_post",
-                self.post,
-                "Post a new message to the public social media feed.",
-            ),
-            (
-                "social_fetch_feed",
-                self.fetch_feed,
-                "Fetch the most recent posts from the social feed.",
-            ),
-            (
-                "social_send_dm",
-                self.send_dm,
-                "Send a private direct message to a specific user.",
-            ),
-            (
-                "social_get_mentions",
-                self.get_mentions,
-                "Fetch all social media posts that mention the organization.",
-            ),
+            ("social_post", self.post, "Create a new social media post."),
+            ("social_mentions", self.get_mentions, "Get recent mentions and tags."),
         ]

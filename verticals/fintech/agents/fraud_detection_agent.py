@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -18,9 +18,6 @@ Your goal is to analyze transactions for potential fraud.
 3. If fraud is found (>70 score), file a report using 'compliance'.
 4. Notify the security team via 'notification'."""
 
-    def get_tool_specs(self) -> List[Any]:
-        tools = []
-        for s in ["database", "analytics", "compliance", "notification"]:
-            if s in self._shims:
-                tools.extend(self._shims[s].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["database", "analytics", "compliance", "notification"]

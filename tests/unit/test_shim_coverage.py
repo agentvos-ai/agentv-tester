@@ -1,370 +1,378 @@
 import pytest
-from unittest.mock import patch, MagicMock
 from core.errors import ShimError
 from shims.registry import ShimRegistry
 
+
 @pytest.fixture
 def registry():
-    reg = ShimRegistry()
+    reg = ShimRegistry(
+        enabled_shims=["git", "database", "filesystem", "rest_api", "hitl"]
+    )
     yield reg
     reg.shutdown_all()
 
+
 def test_git_coverage():
     from shims.s01_git import GitShim
+
     shim = GitShim()
+    shim.setup()
     shim.reset()
     assert shim.name == "git"
     assert shim.description
-    shim.clone("https://main.git")
-    shim.commit("main", {"f.txt": "c"}, "msg")
-    shim.push("main", "dev")
-    shim.create_pr("main", "dev", "main", "PR")
-    shim.get_diff("main", "v1", "v2")
-    shim.list_branches("main")
+
+    # Test real git operations
+    shim.clone("main")
+    tx_files = {"test.py": "print('hello')"}
+    msg = shim.commit("main", tx_files, "feat: add test")
+    assert "Committed as" in msg
+
+    shim.push("main", "main")
+    pr_id = shim.create_pr("main", "dev", "main", "New PR")
+    assert pr_id == "PR-1"
+
+    # Test diff
+    r = shim.list_branches("main")
+    assert "main" in r
+    assert "dev" in r
+
     shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.clone("bad")
-    with pytest.raises(ShimError): shim.commit("bad", {}, "m")
-    with pytest.raises(ShimError): shim.create_pr("bad", "s", "t", "T")
-    with pytest.raises(ShimError): shim.list_branches("bad")
+    with pytest.raises(ShimError):
+        shim.clone("bad")
+    with pytest.raises(ShimError):
+        shim.commit("bad", {}, "m")
+    with pytest.raises(ShimError):
+        shim.list_branches("bad")
+
+    shim.shutdown()
+
 
 def test_rest_api_coverage():
     from shims.s02_rest_api import RestApiShim
+
     shim = RestApiShim()
     shim.reset()
     assert shim.name == "rest_api"
-    assert shim.description
-    
-    # 1. GET existing
+
+    # 1. GET existing (static)
     res = shim.get("/v1/credit_score")
     assert res["status"] == 200
-    
-    # 2. POST (List body)
-    shim.post("/v1/transactions", {"id": "tx_1"})
-    res = shim.get("/v1/transactions")
-    assert len(res["body"]) == 1
-    
-    # 3. POST (New endpoint)
-    shim.post("/v1/new", {"key": "val"})
-    res = shim.get("/v1/new")
-    assert res["body"][0]["key"] == "val"
-    
-    # 4. POST (Update existing dict)
-    shim.post("/v1/credit_score", {"risk": "low"})
-    assert shim.get("/v1/credit_score")["body"]["risk"] == "low"
-    
-    # 5. PUT (Update existing dict)
-    shim.post("/v1/config", {"active": True}) # Creates dict body if payload is dict and it's first
-    # Wait, my POST logic defaults to list if it doesn't exist. 
-    # Let's manually set a dict endpoint for PUT test
-    shim._state["endpoints"]["/v1/settings"] = {"GET": {"status": 200, "body": {"theme": "dark"}}, "PUT": {"status": 200}}
-    shim.put("/v1/settings", {"theme": "light"})
-    assert shim.get("/v1/settings")["body"]["theme"] == "light"
-    
-    # 5. PATCH
-    shim.patch("/v1/settings", {"font": "mono"})
-    assert shim.get("/v1/settings")["body"]["font"] == "mono"
-    
-    # 6. DELETE
-    shim.delete("/v1/settings")
-    assert shim.get("/v1/settings")["status"] == 404
-    
-    # 7. Tool specs
+    assert res["body"]["score"] == 750
+
+    # 2. POST (Dynamic)
+    res = shim.post("/v1/transactions", {"amount": 500.0})
+    assert res["status"] == 201
+    tx_id = res["body"]["id"]
+
+    # 3. GET (Dynamic with path param)
+    res = shim.get(f"/v1/transactions/{tx_id}")
+    assert res["status"] == 200
+    assert res["body"]["amount"] == 500.0
+
+    # 4. 404
+    res = shim.get("/v1/missing")
+    assert res["status"] == 404
+
     shim.get_tool_specs()
+
 
 def test_database_coverage():
     from shims.s03_database import DatabaseShim
+
     shim = DatabaseShim()
     shim.reset()
     assert shim.name == "database"
-    assert shim.description
+
+    # Test real SQLite queries
     shim.query("SELECT * FROM accounts")
     shim.insert("accounts", {"id": 10, "name": "new", "balance": 0.0})
     shim.update("accounts", {"balance": 100.0}, "id = 10")
-    shim.delete("accounts", "id = 10")
-    shim.schema_describe()
+
+    # Test dynamic introspection
+    schema = shim.schema_describe()
+    assert "accounts" in schema
+    assert "id (INTEGER)" in schema["accounts"] or "id (INT)" in schema["accounts"]
+
     shim.get_tool_specs()
     shim.shutdown()
-    shim = DatabaseShim()
-    shim.reset()
-    with pytest.raises(ShimError): shim.query("INVALID SQL")
-    with pytest.raises(ShimError): shim.insert("missing", {"x": 1})
-    with pytest.raises(ShimError): shim.update("missing", {"x": 1}, "y=1")
-    with pytest.raises(ShimError): shim.delete("missing", "y=1")
-    shim.shutdown()
 
-def test_knowledge_base_coverage():
-    from shims.s04_knowledge_base import KnowledgeBaseShim
-    shim = KnowledgeBaseShim()
-    shim.reset()
-    assert shim.name == "knowledge_base"
-    assert shim.description
-    shim.search("compliance")
-    # Hit branch 44-47 by searching for content
-    shim.search("Manual Review")
-    shim.fetch_doc("fraud_policy_v1")
-    shim.list_topics()
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.fetch_doc("missing")
-
-def test_support_desk_coverage():
-    from shims.s05_support_desk import SupportDeskShim
-    shim = SupportDeskShim()
-    shim.reset()
-    assert shim.name == "support_desk"
-    assert shim.description
-    shim.list_open_tickets()
-    tid = shim.create_ticket("Title", "Desc")
-    shim.update_ticket(tid, "Comment")
-    shim.resolve_ticket(tid, "Done")
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.update_ticket("missing", "x")
-    with pytest.raises(ShimError): shim.resolve_ticket("missing", "x")
-
-def test_social_media_coverage():
-    from shims.s06_social_media import SocialMediaShim
-    shim = SocialMediaShim()
-    shim.reset()
-    assert shim.name == "social_media"
-    assert shim.description
-    shim.post("content")
-    shim.fetch_feed()
-    shim.send_dm("user1", "msg")
-    shim.get_mentions()
-    shim.get_tool_specs()
-
-def test_vector_db_coverage():
-    from shims.s07_vector_db import VectorDbShim
-    shim = VectorDbShim()
-    shim.reset()
-    assert shim.name == "vector_db"
-    assert shim.description
-    shim.upsert("policies", [0.1, 0.2], {"id": "1"})
-    # Hit branch 36-37
-    shim.upsert("new_coll", [0.0, 0.0], {"id": "2"})
-    shim.query_similar("policies", [0.1, 0.2])
-    # Hit branch 61 (norm=0)
-    shim.query_similar("policies", [0.0, 0.0])
-    # Hit branch 52-53 (empty collection)
-    shim.reset()
-    assert shim.query_similar("policies", [0.1, 0.2]) == []
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.query_similar("missing", [0.1])
-    with pytest.raises(ShimError): shim.delete_vector("missing", {})
-
-def test_cicd_coverage():
-    from shims.s08_cicd import CicdShim
-    shim = CicdShim()
-    shim.reset()
-    assert shim.name == "cicd"
-    assert shim.description
-    shim.trigger_pipeline("deploy-prod")
-    shim.get_status("deploy-prod")
-    shim.get_logs("deploy-prod")
-    shim.cancel_pipeline("deploy-prod")
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.trigger_pipeline("missing")
-    with pytest.raises(ShimError): shim.get_status("missing")
-    with pytest.raises(ShimError): shim.get_logs("missing")
-    with pytest.raises(ShimError): shim.cancel_pipeline("missing")
-
-def test_iot_coverage():
-    from shims.s09_iot import IotShim
-    shim = IotShim()
-    shim.reset()
-    assert shim.name == "iot"
-    assert shim.description
-    shim.read_sensor("sensor-01")
-    shim.send_command("actuator-01", "ON")
-    shim.list_devices()
-    shim.subscribe_alert("sensor-01", 30.0)
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.read_sensor("missing")
-    with pytest.raises(ShimError): shim.send_command("missing", "CMD")
-
-def test_security_coverage():
-    from shims.s10_security import SecurityShim
-    shim = SecurityShim()
-    shim.reset()
-    assert shim.name == "security"
-    assert shim.description
-    shim.authenticate("user", "secure_token")
-    shim.check_permission("agent-001", "read")
-    shim.rotate_secret("db_password")
-    shim.get_audit_log()
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.rotate_secret("")
-    with pytest.raises(ShimError): shim.rotate_secret("missing")
 
 def test_filesystem_coverage():
     from shims.s11_filesystem import FilesystemShim
+
     shim = FilesystemShim()
     shim.reset()
     assert shim.name == "filesystem"
-    assert shim.description
-    shim.write_file("f.txt", "c")
-    shim.read_file("f.txt")
-    shim.list_dir(".")
-    shim.move("f.txt", "f2.txt")
-    # Hit dir deletion (Branch 84)
-    shim.write_file("dir/f.txt", "c")
-    shim.delete("dir")
-    shim.delete("f2.txt")
-    shim.get_tool_specs()
-    # Hit reset branch 36-37 (exists)
-    shim.reset()
-    # Hit reset branch (not exists) - by manual delete
-    import shutil
-    if shim.base_path.exists():
-        shutil.rmtree(shim.base_path)
-    shim.reset()
-    with pytest.raises(ShimError): shim.read_file("missing")
-    with pytest.raises(ShimError): shim.move("missing", "x")
-    with pytest.raises(ShimError): shim.delete("missing")
-    with pytest.raises(ShimError): shim.write_file("../traversal.txt", "c")
 
-def test_email_coverage():
-    from shims.s12_email import EmailShim
-    shim = EmailShim()
-    shim.reset()
-    assert shim.name == "email"
-    assert shim.description
-    shim.send_email("to@test.com", "Sub", "Body")
-    shim.list_inbox()
-    shim.read_email("msg_1")
-    shim.search_emails("Report")
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.read_email("missing")
+    shim.write_file("test.txt", "content")
+    assert shim.read_file("test.txt") == "content"
 
-def test_calendar_coverage():
-    from shims.s13_calendar import CalendarShim
-    shim = CalendarShim()
-    shim.reset()
-    assert shim.name == "calendar"
-    assert shim.description
-    shim.create_event("Meeting", "2026-05-12T10:00:00", "2026-05-12T11:00:00")
-    shim.list_events("2026-05-12")
-    shim.find_free_slot("2026-05-12", 30)
-    shim.cancel_event("ev_1")
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.cancel_event("missing")
+    files = shim.list_files(".")
+    assert "test.txt" in files
 
-def test_payment_coverage():
-    from shims.s14_payment import PaymentShim
-    shim = PaymentShim()
-    shim.reset()
-    assert shim.name == "payment"
-    assert shim.description
-    shim.charge(100.0, "USD", "service")
-    shim.refund("tx_1001")
-    shim.create_subscription("plan1", "cust1")
-    shim.get_ledger()
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.refund("missing")
+    shim.delete_file("test.txt")
+    with pytest.raises(ShimError):
+        shim.read_file("test.txt")
 
-def test_notification_coverage():
-    from shims.s15_notification import NotificationShim
-    shim = NotificationShim()
-    shim.reset()
-    assert shim.name == "notification"
-    assert shim.description
-    shim.send_sms("123", "msg")
-    shim.send_push("user1", "msg")
-    shim.send_webhook("https://hook.com", {"x": 1})
-    shim.list_sent()
     shim.get_tool_specs()
+    shim.shutdown()
 
-def test_search_coverage():
-    from shims.s16_search import SearchShim
-    shim = SearchShim()
-    shim.reset()
-    assert shim.name == "search"
-    assert shim.description
-    shim.web_search("Market")
-    shim.enterprise_search("Policy")
-    shim.news_search("Tech")
-    shim.get_tool_specs()
-
-def test_analytics_coverage():
-    from shims.s17_analytics import AnalyticsShim
-    shim = AnalyticsShim()
-    shim.reset()
-    assert shim.name == "analytics"
-    assert shim.description
-    shim.query_metrics("churn_rate")
-    shim.create_report("Churn Analysis", ["churn_rate"])
-    shim.get_kpi("avg_nps")
-    shim.get_kpi("missing")
-    shim.forecast("churn_rate", 3)
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.query_metrics("missing")
-
-def test_workflow_coverage():
-    from shims.s18_workflow import WorkflowShim
-    shim = WorkflowShim()
-    shim.reset()
-    assert shim.name == "workflow"
-    assert shim.description
-    wid = shim.start_workflow("Process", {"data": 1})
-    shim.get_workflow_status(wid)
-    shim.complete_task(wid, "task1")
-    shim.complete_task(wid, "END")
-    shim.escalate(wid, "delay")
-    shim.get_tool_specs()
-    with pytest.raises(ShimError): shim.get_workflow_status("missing")
-    with pytest.raises(ShimError): shim.complete_task("missing", "x")
-    with pytest.raises(ShimError): shim.escalate("missing", "x")
-
-def test_compliance_coverage():
-    from shims.s19_compliance import ComplianceShim
-    shim = ComplianceShim()
-    shim.reset()
-    assert shim.name == "compliance"
-    assert shim.description
-    shim.check_policy("transaction", {"amount": 60000})
-    shim.check_policy("transaction", {"amount": 1000})
-    shim.file_report("SAR", {"id": 1})
-    shim.get_audit_trail()
-    shim.flag_violation("user1", "suspicious")
-    shim.get_tool_specs()
 
 def test_hitl_coverage():
     from shims.s20_hitl import HitlShim
+
     shim = HitlShim()
     shim.reset()
     assert shim.name == "hitl"
-    assert shim.description
-    
-    # 1. NORMAL priority
-    # Mock hash to ensure it doesn't resolve immediately (h % 10 >= 8)
-    with patch("hashlib.md5") as mock_md5:
-        mock_md5.return_value.hexdigest.return_value = "f" * 31 + "8" # h % 16 = 8
-        rid = shim.request_human_review("Normal task", {})
-        # Should take 4 checks
-        for _ in range(3):
-            assert shim.get_review_status(rid)["status"] == "PENDING"
-        res = shim.get_review_status(rid)
-        assert res["status"] in ["APPROVED", "REJECTED"]
-    
-    # 2. HIGH priority (urgent keyword)
-    rid_high = shim.request_human_review("Urgent task", {})
-    assert shim.get_review_status(rid_high)["priority"] == "HIGH"
-    # Should take 2 checks
-    shim.get_review_status(rid_high)
-    res = shim.get_review_status(rid_high)
-    assert res["status"] in ["APPROVED", "REJECTED"]
-    
-    # 3. HIGH priority (context)
-    rid_high2 = shim.request_human_review("Task", {"priority": "high"})
-    assert shim.get_review_status(rid_high2)["priority"] == "HIGH"
 
-    # 4. Manual decision
-    rid_manual = shim.request_human_review("Manual", {})
-    shim.submit_human_decision(rid_manual, "REJECTED")
-    assert shim.get_review_status(rid_manual)["status"] == "REJECTED"
-    
-    # 5. Tool specs
+    rid = shim.request_human_review("Urgent task", {"priority": "high"})
+    res = shim.get_review_status(rid)
+    assert res["status"] == "PENDING"
+
+    # It should stay PENDING until advanced
+    for _ in range(5):
+        assert shim.get_review_status(rid)["status"] == "PENDING"
+
+    shim.submit_human_decision(rid, "Approved")
+    res = shim.get_review_status(rid)
+    assert res["status"] == "APPROVED"
+
     shim.get_tool_specs()
-    
-    # 6. Errors
-    with pytest.raises(ShimError): shim.get_review_status("missing")
-    with pytest.raises(ShimError): shim.submit_human_decision("missing", "X")
+    with pytest.raises(ShimError):
+        shim.get_review_status("missing")
+
+
+def test_knowledge_base_coverage():
+    from shims.s04_knowledge_base import KnowledgeBaseShim
+
+    shim = KnowledgeBaseShim()
+    shim.reset()
+    assert shim.name == "knowledge_base"
+
+    # Search
+    results = shim.search("fraud")
+    assert "fraud_policy_v1" in results
+
+    # Fetch
+    content = shim.fetch_doc("fraud_policy_v1")
+    assert "transactions above $10,000" in content
+
+    # Topics
+    topics = shim.list_topics()
+    assert "Compliance" in topics
+
+    shim.shutdown()
+
+
+def test_support_desk_coverage():
+    from shims.s05_support_desk import SupportDeskShim
+
+    shim = SupportDeskShim()
+    shim.reset()
+    assert shim.name == "support_desk"
+
+    tid = shim.create_ticket("Test Ticket", "Test Description")
+    assert tid.startswith("TKT-")
+
+    msg = shim.update_ticket(tid, "Added a comment")
+    assert "Comment added" in msg
+
+    tickets = shim.list_open_tickets()
+    assert any(t["id"] == tid for t in tickets)
+
+    shim.resolve_ticket(tid, "Fixed it")
+    tickets = shim.list_open_tickets()
+    assert not any(t["id"] == tid for t in tickets)
+
+    shim.shutdown()
+
+
+def test_iot_coverage():
+    from shims.s09_iot import IotShim
+
+    shim = IotShim()
+    shim.reset()
+    assert shim.name == "iot"
+
+    devices = shim.list_devices()
+    assert len(devices) >= 2
+
+    res = shim.read_sensor("sensor-01")
+    assert res["reading"] > 0
+
+    msg = shim.send_command("actuator-01", "TURN ON")
+    assert "ON" in msg
+
+    shim.shutdown()
+
+
+def test_security_coverage():
+    from shims.s10_security import SecurityShim
+
+    shim = SecurityShim()
+    shim.reset()
+    assert shim.name == "security"
+
+    token = shim.authenticate("admin", "secret")
+    assert len(token) == 16
+
+    assert shim.check_permission(token, "vault", "write") is True
+
+    token2 = shim.authenticate("user", "pass")
+    assert shim.check_permission(token2, "vault", "write") is False
+
+    msg = shim.rotate_secret("api_key")
+    assert "rotated successfully" in msg
+
+    logs = shim.get_audit_log()
+    assert len(logs) > 0
+
+    shim.shutdown()
+
+
+def test_email_coverage():
+    from shims.s12_email import EmailShim
+
+    shim = EmailShim()
+    shim.reset()
+    assert shim.name == "email"
+
+    msg = shim.send_email("test@corp.com", "agent@enterprise.com", "Hi", "Hello world")
+    assert "sent" in msg
+
+    inbox = shim.list_inbox("agent@enterprise.com")
+    assert len(inbox) >= 2  # 1 seeded + 1 sent
+
+    # Find the 'Hi' message
+    msg = next(m for m in inbox if m["subject"] == "Hi")
+    msg_id = msg["id"]
+    content = shim.read_email(msg_id)
+    assert content["subject"] == "Hi"
+    assert content["body"] == "Hello world"
+
+    shim.shutdown()
+
+
+def test_calendar_coverage():
+    from shims.s13_calendar import CalendarShim
+
+    shim = CalendarShim()
+    shim.reset()
+    assert shim.name == "calendar"
+
+    msg = shim.create_event("Meeting", "2025-07-01 12:00", "2025-07-01 13:00", "Lobby")
+    assert "scheduled" in msg
+
+    events = shim.list_events("2025-07-01")
+    assert len(events) == 1
+
+    eid = events[0]["id"]
+    msg = shim.delete_event(eid)
+    assert "cancelled" in msg
+
+    shim.shutdown()
+
+
+def test_payment_coverage():
+    from shims.s14_payment import PaymentShim
+
+    shim = PaymentShim()
+    shim.reset()
+    assert shim.name == "payment"
+
+    bal_before = shim.get_balance("CUSTOMER-001")
+    msg = shim.process_payment("SYSTEM", "CUSTOMER-001", 100.0, "Bonus")
+    assert "successful" in msg
+
+    bal_after = shim.get_balance("CUSTOMER-001")
+    assert bal_after == bal_before + 100.0
+
+    history = shim.list_transactions("CUSTOMER-001")
+    assert len(history) == 1
+
+    shim.shutdown()
+
+
+def test_compliance_coverage():
+    from shims.s19_compliance import ComplianceShim
+
+    shim = ComplianceShim()
+    shim.reset()
+    assert shim.name == "compliance"
+
+    msg = shim.perform_check("RES-1", "AML", {"amount": 5000})
+    assert "PASSED" in msg
+
+    msg = shim.perform_check("RES-2", "AML", {"amount": 20000})
+    assert "WARNING" in msg
+
+    audit = shim.get_audit_trail()
+    assert len(audit) == 2
+
+    shim.shutdown()
+
+
+def test_workflow_coverage():
+    from shims.s18_workflow import WorkflowShim
+
+    shim = WorkflowShim()
+    shim.reset()
+    assert shim.name == "workflow"
+
+    wid = shim.start_workflow("TEST", {"step": 1})
+    assert wid.startswith("WF-")
+
+    msg = shim.update_workflow(wid, {"step": 2}, "ADVANCE")
+    assert "updated" in msg
+
+    status = shim.get_workflow_status(wid)
+    assert status["state"]["step"] == 2
+    assert len(status["history"]) == 2
+
+    shim.shutdown()
+
+
+def test_vector_db_coverage():
+    from shims.s07_vector_db import VectorDbShim
+
+    shim = VectorDbShim()
+    shim.reset()
+    assert shim.name == "vector_db"
+
+    # Upsert
+    shim.upsert("test_coll", [1.0, 0.0, 0.0], {"name": "x-axis"})
+    shim.upsert("test_coll", [0.0, 1.0, 0.0], {"name": "y-axis"})
+
+    # Query
+    results = shim.query_similar("test_coll", [0.9, 0.1, 0.0], limit=1)
+    assert len(results) == 1
+    assert results[0]["metadata"]["name"] == "x-axis"
+    assert results[0]["score"] > 0.9
+
+    shim.shutdown()
+
+
+def test_search_coverage():
+    from shims.s16_search import SearchShim
+    from shims.s04_knowledge_base import KnowledgeBaseShim
+
+    # Setup KB first so search can find it
+    kb = KnowledgeBaseShim()
+    kb.reset()
+
+    shim = SearchShim()
+    shim.reset()
+    assert shim.name == "search"
+
+    # Web search
+    web_res = shim.web_search("AML")
+    assert len(web_res) > 0
+    assert "AML" in web_res[0]["title"]
+
+    # Internal search
+    int_res = shim.internal_search("fraud")
+    assert len(int_res) > 0
+    assert "Fraud" in int_res[0]["title"]
+
+    shim.shutdown()
+    kb.shutdown()

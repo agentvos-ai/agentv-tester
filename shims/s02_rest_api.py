@@ -1,7 +1,6 @@
 import logging
-
-
-from typing import List, Dict, Any, Tuple, Optional
+import re
+from typing import List, Dict, Any, Tuple, Optional, Callable
 from core.registry import register_shim
 from shims import BaseShim
 
@@ -11,9 +10,13 @@ logger = logging.getLogger(__name__)
 @register_shim("rest_api")
 class RestApiShim(BaseShim):
     """
-    Generic HTTP API simulator with configurable response fixtures.
-    Supports standard REST methods.
+    Industrial-grade internal REST API simulator.
+    Uses regex-based routing to support path parameters and dynamic responses.
     """
+
+    def __init__(self, seed: int = 42):
+        super().__init__(seed)
+        self._routes: List[Tuple[str, str, Callable]] = []
 
     @property
     def name(self) -> str:
@@ -24,63 +27,69 @@ class RestApiShim(BaseShim):
         return "Interface for interacting with internal and external RESTful services."
 
     def reset(self) -> None:
-        """Deterministic reset of the API state."""
-        self._state["endpoints"] = {
-            "/v1/credit_score": {
-                "GET": {"status": 200, "body": {"score": 750, "rating": "Excellent"}}
-            },
-            "/v1/transactions": {
-                "GET": {"status": 200, "body": []},
-                "POST": {"status": 201, "body": {"id": "tx_123", "status": "success"}},
-            },
+        """Deterministic reset of the API state and routes."""
+        self._state["data"] = {
+            "accounts": [{"id": "acc_1", "balance": 1000.0}],
+            "transactions": [],
         }
+        self._setup_default_routes()
+
+    def _setup_default_routes(self) -> None:
+        """Configures the regex-based routing table."""
+        self._routes = [
+            (
+                "GET",
+                r"^/v1/credit_score$",
+                lambda p, b: {"status": 200, "body": {"score": 750}},
+            ),
+            (
+                "GET",
+                r"^/v1/accounts$",
+                lambda p, b: {"status": 200, "body": self._state["data"]["accounts"]},
+            ),
+            ("POST", r"^/v1/transactions$", self._handle_post_transaction),
+            (
+                "GET",
+                r"^/v1/transactions/(?P<tx_id>[^/]+)$",
+                self._handle_get_transaction,
+            ),
+        ]
+
+    def _handle_post_transaction(
+        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        if not body:
+            return {"status": 400, "body": {"error": "Missing payload"}}
+        tx_id = f"tx_{len(self._state['data']['transactions']) + 100}"
+        tx = {"id": tx_id, **body}
+        self._state["data"]["transactions"].append(tx)
+        return {"status": 201, "body": tx}
+
+    def _handle_get_transaction(
+        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        tx_id = params.get("tx_id")
+        for tx in self._state["data"]["transactions"]:
+            if tx["id"] == tx_id:
+                return {"status": 200, "body": tx}
+        return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
 
     def _request(
         self, method: str, url: str, payload: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Generic request handler."""
+        """Industrial internal router using regex matching."""
         logger.info("REST: Calling %s %s", method, url)
-        # 1. Handle stateful creation/mutation BEFORE validation for simulation flexibility
-        if method == "POST":
-            # Automatically create endpoint if it doesn't exist
-            if url not in self._state["endpoints"]:
-                self._state["endpoints"][url] = {
-                    "GET": {"status": 200, "body": []},
-                    "POST": {"status": 201, "body": {"status": "success"}}
-                }
-            
-            # Update body
-            current_body = self._state["endpoints"][url].get("GET", {}).get("body")
-            if isinstance(current_body, list) and payload:
-                current_body.append(payload)
-            elif isinstance(current_body, dict) and payload:
-                current_body.update(payload)
-                
-        elif method in ["PUT", "PATCH"] and url in self._state["endpoints"] and payload:
-            if "GET" in self._state["endpoints"][url]:
-                current_body = self._state["endpoints"][url]["GET"].get("body")
-                if isinstance(current_body, dict):
-                    current_body.update(payload)
-                else:
-                    self._state["endpoints"][url]["GET"]["body"] = payload
-            # Ensure the method itself is supported in the endpoint map for validation
-            if method not in self._state["endpoints"][url]:
-                 self._state["endpoints"][url][method] = {"status": 200}
-                    
-        elif method == "DELETE" and url in self._state["endpoints"]:
-             self._state["endpoints"][url]["GET"] = {"status": 404, "body": {"error": "Deleted"}}
-             if "DELETE" not in self._state["endpoints"][url]:
-                 self._state["endpoints"][url]["DELETE"] = {"status": 200}
 
-        # 2. Validate endpoint
-        endpoint = self._state["endpoints"].get(url)
-        if not endpoint or method not in endpoint:
-            return {
-                "status": 404,
-                "error": f"Endpoint '{url}' with method '{method}' not found.",
-            }
+        for r_method, r_regex, handler in self._routes:
+            if r_method == method:
+                match = re.match(r_regex, url)
+                if match:
+                    return handler(match.groupdict(), payload)
 
-        return endpoint.get(method, {"status": 200, "body": {"status": "success"}})
+        return {
+            "status": 404,
+            "error": f"Endpoint '{url}' with method '{method}' not found.",
+        }
 
     def get(self, url: str) -> Dict[str, Any]:
         """Perform a GET request."""

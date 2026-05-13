@@ -96,7 +96,6 @@ class LangGraphAdapter(BaseFrameworkAdapter):
         return {"role": "user", "content": str(msg.content)}
 
 
-
 class LangGraphRunnable(RunnableAgent):
     def __init__(self, graph: Any):
         self.graph = graph

@@ -13,10 +13,12 @@ class ShimRegistry:
         self.initialize_shims()
 
     def initialize_shims(self):
-        """Initializes/Resets all enabled shims."""
+        """Initializes and sets up all enabled shims."""
         for name in self._enabled_names:
             shim_cls = get_shim_class(name)
-            self.shims[name] = shim_cls(seed=self._seed)
+            instance = shim_cls(seed=self._seed)
+            instance.setup()
+            self.shims[name] = instance
 
     def hot_swap(self, shim_name: str, new_shim_instance: BaseShim):
         """Allows swapping a shim at runtime for advanced testing scenarios."""
@@ -28,6 +30,11 @@ class ShimRegistry:
         for shim in self.shims.values():
             all_tools.extend(shim.get_tool_specs())
         return all_tools
+
+    def setup_all(self):
+        """Calls setup on all active shims."""
+        for shim in self.shims.values():
+            shim.setup()
 
     def reset_all(self):
         """Resets every active shim to its deterministic baseline."""

@@ -31,8 +31,12 @@ class BaseShim(ABC):
         """Resets shim state to a deterministic baseline."""
         pass
 
+    def setup(self) -> None:
+        """Performs initial setup, such as creating temporary directories or connecting to local backends."""
+        pass
+
     def shutdown(self) -> None:
-        """Gracefully shuts down the shim, closing any open resources."""
+        """Gracefully shuts down the shim, closing any open resources and cleaning up."""
         pass
 
     @abstractmethod

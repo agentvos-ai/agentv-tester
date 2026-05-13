@@ -103,8 +103,25 @@ class DatabaseShim(BaseShim):
             raise ShimError(f"Database delete failed: {str(e)}")
 
     def schema_describe(self) -> Dict[str, Any]:
-        """Describes the database schema."""
-        return {"accounts": ["id (INT)", "name (TEXT)", "balance (REAL)"]}
+        """Describes the database schema dynamically using SQLite introspection."""
+        try:
+            schema = {}
+            with self.engine.connect() as conn:
+                # Get all table names
+                tables = conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table'")
+                )
+                for table_row in tables:
+                    table_name = table_row[0]
+                    if table_name == "sqlite_sequence":
+                        continue
+
+                    # Get columns for each table
+                    columns = conn.execute(text(f"PRAGMA table_info({table_name})"))
+                    schema[table_name] = [f"{col[1]} ({col[2]})" for col in columns]
+            return schema
+        except Exception as e:
+            raise ShimError(f"Failed to describe database schema: {str(e)}")
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [

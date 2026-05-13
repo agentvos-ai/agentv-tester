@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -13,16 +13,6 @@ class LoanUnderwritingAgent(BaseAgent):
 You use databases, credit APIs, and compliance engines. 
 You must follow the multi-step approval workflow and notify applicants via email."""
 
-    def get_tool_specs(self) -> List[Dict[str, Any]]:
-        tools = []
-        for shim_name in [
-            "database",
-            "rest_api",
-            "compliance",
-            "workflow",
-            "hitl",
-            "email",
-        ]:
-            if shim_name in self._shims:
-                tools.extend(self._shims[shim_name].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["database", "rest_api", "compliance", "workflow", "hitl", "email"]

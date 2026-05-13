@@ -1,17 +1,37 @@
 import pytest
 from shims.registry import ShimRegistry
 
+
 @pytest.fixture
 def booster_registry():
-    registry = ShimRegistry(enabled_shims=[
-        "git", "rest_api", "database", "knowledge_base", "support_desk",
-        "social_media", "vector_db", "cicd", "iot", "security",
-        "filesystem", "email", "calendar", "payment", "notification",
-        "search", "analytics", "workflow", "compliance", "hitl"
-    ])
+    registry = ShimRegistry(
+        enabled_shims=[
+            "git",
+            "rest_api",
+            "database",
+            "knowledge_base",
+            "support_desk",
+            "social_media",
+            "vector_db",
+            "cicd",
+            "iot",
+            "security",
+            "filesystem",
+            "email",
+            "calendar",
+            "payment",
+            "notification",
+            "search",
+            "analytics",
+            "workflow",
+            "compliance",
+            "hitl",
+        ]
+    )
     registry.reset_all()
     yield registry
     registry.shutdown_all()
+
 
 def test_all_shims_methods(booster_registry):
     """Systematically calls methods on every shim to reach high coverage."""

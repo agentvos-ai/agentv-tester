@@ -1,7 +1,8 @@
 import logging
-
-
-from typing import List, Any, Tuple
+import os
+import sqlite3
+import json
+from typing import List, Dict, Any, Tuple
 from core.registry import register_shim
 from core.errors import ShimError
 from shims import BaseShim
@@ -12,9 +13,13 @@ logger = logging.getLogger(__name__)
 @register_shim("analytics")
 class AnalyticsShim(BaseShim):
     """
-    Enterprise analytics and reporting simulator.
-    Supports metrics querying, KPI calculation, and forecasting.
+    Industrial-grade Analytics interface.
+    Uses a local SQLite database for metrics, reports, and forecasts.
     """
+
+    def __init__(self, seed: int = 42):
+        self.db_path = os.path.abspath(".agent_workspace/db/analytics.db")
+        super().__init__(seed)
 
     @property
     def name(self) -> str:
@@ -22,60 +27,110 @@ class AnalyticsShim(BaseShim):
 
     @property
     def description(self) -> str:
-        return "Analytics engine for monitoring performance and forecasting trends."
+        return "Enterprise analytics engine for business intelligence and forecasting."
+
+    def setup(self) -> None:
+        """Ensure database and tables exist."""
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS metrics (
+                    id TEXT PRIMARY KEY,
+                    value REAL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT,
+                    config_json TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def shutdown(self) -> None:
+        """Cleanup the database file."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
 
     def reset(self) -> None:
-        """Deterministic reset of the analytics data."""
-        self._state["metrics"] = {
-            "churn_rate": [0.05, 0.04, 0.06],
-            "nps_score": [72, 75, 74],
+        """Deterministic reset of the analytics state."""
+        self.shutdown()
+        self.setup()
+
+        # Seed default metrics
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                "INSERT INTO metrics (id, value) VALUES (?, ?)", ("avg_nps", 8.5)
+            )
+            conn.execute(
+                "INSERT INTO metrics (id, value) VALUES (?, ?)", ("churn_rate", 0.12)
+            )
+            conn.execute(
+                "INSERT INTO metrics (id, value) VALUES (?, ?)", ("nps_score", 72.0)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def query_metrics(self, metric_id: str) -> float:
+        """Retrieves a specific business metric."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT value FROM metrics WHERE id = ?", (metric_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                raise ShimError(f"Metric '{metric_id}' not found.")
+            return row[0]
+        finally:
+            conn.close()
+
+    def create_report(self, title: str, metrics: List[str]) -> str:
+        """Generates a new business report."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                "INSERT INTO reports (title, config_json) VALUES (?, ?)",
+                (title, json.dumps(metrics)),
+            )
+            conn.commit()
+            return f"Report '{title}' generated successfully."
+        except Exception as e:
+            raise ShimError(f"Failed to create report: {str(e)}")
+        finally:
+            conn.close()
+
+    def get_kpi(self, kpi_name: str) -> Dict[str, Any]:
+        """Retrieves a Key Performance Indicator."""
+        val = self.query_metrics(kpi_name)
+        return {
+            "name": kpi_name,
+            "value": val,
+            "status": "OPTIMAL" if val > 5 else "CRITICAL",
         }
-        self._state["reports"] = []
 
-    def query_metrics(self, metric_id: str) -> List[float]:
-        """Queries historical values for a metric."""
-        if metric_id not in self._state["metrics"]:
-            raise ShimError(f"Metric '{metric_id}' not found.")
-        return self._state["metrics"][metric_id]
-
-    def create_report(self, title: str, metric_ids: List[str]) -> str:
-        """Generates a summary report for multiple metrics."""
-        report_id = f"REP-{len(self._state['reports']) + 1}"
-        summary = {m: self.query_metrics(m) for m in metric_ids}
-        self._state["reports"].append(
-            {"id": report_id, "title": title, "data": summary}
-        )
-        return f"Report '{title}' generated with ID: {report_id}."
-
-    def get_kpi(self, kpi_name: str) -> float:
-        """Calculates a specific Key Performance Indicator."""
-        if kpi_name == "avg_nps":
-            nps = self._state["metrics"]["nps_score"]
-            return sum(nps) / len(nps)
-        return 0.0
-
-    def forecast(self, metric_id: str, steps: int) -> List[float]:
-        """Simple linear forecast for a metric."""
-        history = self.query_metrics(metric_id)
-        last = history[-1]
-        return [last + (0.1 * i) for i in range(1, steps + 1)]
+    def forecast(self, metric_id: str, periods: int) -> List[float]:
+        """Simulates forecasting based on historic metrics."""
+        base = self.query_metrics(metric_id)
+        # Simple linear projection with a bit of "industrial" noise
+        return [base * (1 + 0.02 * i) for i in range(1, periods + 1)]
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
-            (
-                "analytics_query",
-                self.query_metrics,
-                "Query historical data for a specific metric.",
-            ),
-            (
-                "analytics_report",
-                self.create_report,
-                "Generate a performance report for a set of metrics.",
-            ),
-            ("analytics_kpi", self.get_kpi, "Calculate an enterprise KPI."),
+            ("analytics_query", self.query_metrics, "Query a business metric."),
+            ("analytics_report", self.create_report, "Create a performance report."),
+            ("analytics_kpi", self.get_kpi, "Retrieve a Key Performance Indicator."),
             (
                 "analytics_forecast",
                 self.forecast,
-                "Generate a forecast for a metric based on historical data.",
+                "Forecast metrics for future periods.",
             ),
         ]

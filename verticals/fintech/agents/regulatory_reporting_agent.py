@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -12,16 +12,6 @@ class RegulatoryReportingAgent(BaseAgent):
         return """You are a Regulatory Reporting Agent. You automate the filing of mandated financial reports.
 You extract data from databases, assemble reports in the filesystem, version them using Git, and file them via compliance engines."""
 
-    def get_tool_specs(self) -> List[Dict[str, Any]]:
-        tools = []
-        for shim_name in [
-            "database",
-            "filesystem",
-            "compliance",
-            "email",
-            "analytics",
-            "git",
-        ]:
-            if shim_name in self._shims:
-                tools.extend(self._shims[shim_name].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["database", "filesystem", "compliance", "email", "analytics", "git"]

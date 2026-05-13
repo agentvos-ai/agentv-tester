@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -13,9 +13,6 @@ class ChurnPreventionAgent(BaseAgent):
 Analyze user engagement in 'analytics' and recent 'support_desk' tickets.
 Search for competitive 'search' data. Send retention 'email' or 'social_media' DMs."""
 
-    def get_tool_specs(self) -> List[Any]:
-        tools = []
-        for s in ["analytics", "support_desk", "search", "email", "social_media"]:
-            if s in self._shims:
-                tools.extend(self._shims[s].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["analytics", "support_desk", "search", "email", "social_media"]

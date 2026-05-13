@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -13,16 +13,13 @@ class PortfolioAdvisorAgent(BaseAgent):
 You use market data APIs, semantic search in the knowledge base, and vector search for policy matching.
 Any rebalancing above $50k requires human approval via HITL."""
 
-    def get_tool_specs(self) -> List[Dict[str, Any]]:
-        tools = []
-        for shim_name in [
+    @property
+    def allowed_shims(self) -> List[str]:
+        return [
             "rest_api",
             "vector_db",
             "knowledge_base",
             "analytics",
             "search",
             "hitl",
-        ]:
-            if shim_name in self._shims:
-                tools.extend(self._shims[shim_name].get_tool_specs())
-        return tools
+        ]

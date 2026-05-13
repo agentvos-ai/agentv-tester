@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -13,9 +13,6 @@ class PatientDischargeAgent(BaseAgent):
 Coordinate discharge by verifying status in 'database', scheduling follow-ups in 'calendar', 
 and sending instructions via 'email'."""
 
-    def get_tool_specs(self) -> List[Any]:
-        tools = []
-        for s in ["database", "calendar", "email", "support_desk"]:
-            if s in self._shims:
-                tools.extend(self._shims[s].get_tool_specs())
-        return tools
+    @property
+    def allowed_shims(self) -> List[str]:
+        return ["database", "calendar", "email", "support_desk"]

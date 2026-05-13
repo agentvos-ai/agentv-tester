@@ -128,12 +128,12 @@ def create_app() -> Flask:
             # Dynamically load the agent class
             agent_name = data.get("agent", active_vertical.agents[0])
             agent_cls = get_agent_class(agent_name)
-            
+
             # Step 1: Create agent with a dummy framework to discover tools
             # (In a real industrial app, we'd use a classmethod for tools)
             temp_agent = agent_cls(config, None, shim_registry.shims)
             required_tools = temp_agent.get_tool_specs()
-            
+
             # Dimension 3: Framework (Wired to ONLY the tools the agent requested)
             framework_cls = get_framework_adapter(config.active_framework)
             framework = framework_cls(llm, required_tools, config)
