@@ -51,7 +51,7 @@ def test_fallback_provider_stream(mock_config):
 
     # Test success
     chunks = list(fallback.stream([{"role": "user", "content": "hello"}]))
-    assert "Mock" in chunks[0]["content"]
+    assert "Mock" in chunks[0]["choices"][0]["message"]["content"]
 
     # Test fallback on stream error
     def fail_stream(*args, **kwargs):
@@ -92,4 +92,4 @@ def test_mock_provider_stream(mock_config):
     p = MockLLMProvider(mock_config.llms["mock"])
     chunks = list(p.stream([{"role": "user", "content": "hello"}]))
     assert len(chunks) > 0
-    assert "Mock" in chunks[0]["content"]
+    assert "Mock" in chunks[0]["choices"][0]["message"]["content"]

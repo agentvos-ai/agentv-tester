@@ -40,7 +40,11 @@ def test_base_agent_execution(mock_config, mock_llm, shim_registry):
 
     task = {
         "task_id": "T1",
-        "input": "Check this fraud case",
+        "input_data": {
+            "transaction_id": "TX-1",
+            "account_id": "ACC-1",
+            "amount": 100.0,
+        },
         "context": {"priority": "high"},
     }
     result = agent.execute(task)

@@ -24,7 +24,10 @@ class TestHealthcareIntegration(unittest.TestCase):
             "task_id": "HC-INT-001",
             "agent": "clinical_triage_agent",
             "input": "Patient P-11 has heart rate 145 and SpO2 88%. Prioritize and alert.",
-            "context": {"patient_id": "P-11"},
+            "context": {
+                "patient_id": "P-11",
+                "symptoms": ["High heart rate", "Low SpO2"],
+            },
         }
 
         response = self.client.post("/execute_task", json=payload)
@@ -33,7 +36,7 @@ class TestHealthcareIntegration(unittest.TestCase):
         data = response.get_json()
         self.assertEqual(data["status"], "success")
         # Verify urgency logic in output
-        self.assertIn("assistant", data.get("output", "").lower())
+        self.assertIn("analysis complete", data.get("output", "").lower())
 
 
 if __name__ == "__main__":

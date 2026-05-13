@@ -53,6 +53,29 @@ class RestApiShim(BaseShim):
                 r"^/v1/transactions/(?P<tx_id>[^/]+)$",
                 self._handle_get_transaction,
             ),
+            (
+                "PUT",
+                r"^/v1/transactions/(?P<tx_id>[^/]+)$",
+                self._handle_put_transaction,
+            ),
+            (
+                "PATCH",
+                r"^/v1/transactions/(?P<tx_id>[^/]+)$",
+                self._handle_patch_transaction,
+            ),
+            (
+                "DELETE",
+                r"^/v1/transactions/(?P<tx_id>[^/]+)$",
+                self._handle_delete_transaction,
+            ),
+            (
+                "GET",
+                r"^/v1/status$",
+                lambda p, b: {
+                    "status": 200,
+                    "body": {"service": "online", "version": "1.0.0"},
+                },
+            ),
         ]
 
     def _handle_post_transaction(
@@ -72,6 +95,43 @@ class RestApiShim(BaseShim):
         for tx in self._state["data"]["transactions"]:
             if tx["id"] == tx_id:
                 return {"status": 200, "body": tx}
+        return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
+
+    def _handle_put_transaction(
+        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        if not body:
+            return {"status": 400, "body": {"error": "Missing payload"}}
+        tx_id = params.get("tx_id")
+        for i, tx in enumerate(self._state["data"]["transactions"]):
+            if tx["id"] == tx_id:
+                updated_tx = {"id": tx_id, **body}
+                self._state["data"]["transactions"][i] = updated_tx
+                return {"status": 200, "body": updated_tx}
+        return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
+
+    def _handle_patch_transaction(
+        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        if not body:
+            return {"status": 400, "body": {"error": "Missing payload"}}
+        tx_id = params.get("tx_id")
+        for i, tx in enumerate(self._state["data"]["transactions"]):
+            if tx["id"] == tx_id:
+                self._state["data"]["transactions"][i].update(body)
+                return {"status": 200, "body": self._state["data"]["transactions"][i]}
+        return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
+
+    def _handle_delete_transaction(
+        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        tx_id = params.get("tx_id")
+        initial_len = len(self._state["data"]["transactions"])
+        self._state["data"]["transactions"] = [
+            tx for tx in self._state["data"]["transactions"] if tx["id"] != tx_id
+        ]
+        if len(self._state["data"]["transactions"]) < initial_len:
+            return {"status": 204, "body": {}}
         return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
 
     def _request(

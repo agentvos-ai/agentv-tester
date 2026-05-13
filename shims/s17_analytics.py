@@ -123,6 +123,32 @@ class AnalyticsShim(BaseShim):
         # Simple linear projection with a bit of "industrial" noise
         return [base * (1 + 0.02 * i) for i in range(1, periods + 1)]
 
+    def aggregate_metrics(self, metric_ids: List[str], operation: str = "sum") -> float:
+        """Aggregates multiple metrics using sum, avg, min, or max."""
+        if not metric_ids:
+            return 0.0
+        conn = sqlite3.connect(self.db_path)
+        try:
+            placeholders = ", ".join(["?" for _ in metric_ids])
+            sql = f"SELECT value FROM metrics WHERE id IN ({placeholders})"
+            cursor = conn.execute(sql, metric_ids)
+            values = [row[0] for row in cursor.fetchall()]
+            if not values:
+                return 0.0
+
+            op = operation.lower()
+            if op == "sum":
+                return sum(values)
+            if op == "avg":
+                return sum(values) / len(values)
+            if op == "min":
+                return min(values)
+            if op == "max":
+                return max(values)
+            raise ShimError(f"Unsupported aggregation operation: {operation}")
+        finally:
+            conn.close()
+
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         return [
             ("analytics_query", self.query_metrics, "Query a business metric."),
@@ -132,5 +158,10 @@ class AnalyticsShim(BaseShim):
                 "analytics_forecast",
                 self.forecast,
                 "Forecast metrics for future periods.",
+            ),
+            (
+                "analytics_aggregate",
+                self.aggregate_metrics,
+                "Aggregate multiple metrics (sum, avg, min, max).",
             ),
         ]

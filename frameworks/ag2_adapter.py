@@ -53,7 +53,9 @@ class SuiteModelClient:
         return [choice.message for choice in response.choices]
 
     def cost(self, response: Any) -> float:
-        return 0.0
+        # Industrial cost model ($0.03 per 1k prompt tokens, $0.06 per 1k completion)
+        u = response.usage
+        return (u.prompt_tokens * 0.00003) + (u.completion_tokens * 0.00006)
 
     @staticmethod
     def get_common_config_list(
@@ -122,7 +124,23 @@ class AG2Runnable(RunnableAgent):
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
 
             self.user_proxy.initiate_chat(self.assistant, message=full_task)
+
+            # Extract tool calls from assistant history
+            # AG2 stores history in assistant.chat_messages[user_proxy]
+            chat_history = self.assistant.chat_messages.get(self.user_proxy, [])
+            tool_calls = []
+            for msg in chat_history:
+                if "tool_calls" in msg and msg["tool_calls"]:
+                    for tc in msg["tool_calls"]:
+                        # Convert back to our suite format
+                        tool_calls.append(
+                            {
+                                "name": tc["function"]["name"],
+                                "args": tc["function"]["arguments"],
+                            }
+                        )
+
             last_msg = self.assistant.last_message()
-            return {"output": last_msg.get("content", ""), "tool_calls": []}
+            return {"output": last_msg.get("content", ""), "tool_calls": tool_calls}
         except Exception as e:
             raise AgentExecutionError(f"AG2 execution failed: {str(e)}") from e

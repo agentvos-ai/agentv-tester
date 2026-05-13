@@ -2,7 +2,13 @@ import operator
 from typing import Annotated, Sequence, TypedDict, List, Any, Dict
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    AIMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.tools import StructuredTool
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
 from core.registry import register_framework
@@ -86,13 +92,37 @@ class LangGraphAdapter(BaseFrameworkAdapter):
             )
         return lc_tools
 
-    def _lc_to_suite_msg(self, msg: BaseMessage) -> Dict[str, str]:
+    def _lc_to_suite_msg(self, msg: BaseMessage) -> Dict[str, Any]:
         if isinstance(msg, HumanMessage):
             return {"role": "user", "content": str(msg.content)}
         if isinstance(msg, AIMessage):
-            return {"role": "assistant", "content": str(msg.content)}
+            # Preserve tool calls for stateful LLMs (like our Mock simulator)
+            lc_tool_calls = getattr(msg, "tool_calls", [])
+            suite_tool_calls = []
+            for tc in lc_tool_calls:
+                suite_tool_calls.append(
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {"name": tc["name"], "arguments": tc["args"]},
+                    }
+                )
+            return {
+                "role": "assistant",
+                "content": str(msg.content),
+                "tool_calls": suite_tool_calls,
+            }
         if isinstance(msg, SystemMessage):
             return {"role": "system", "content": str(msg.content)}
+
+        # Handle ToolMessage (result of a tool execution)
+        if isinstance(msg, ToolMessage):
+            return {
+                "role": "tool",
+                "tool_call_id": msg.tool_call_id,
+                "content": str(msg.content),
+            }
+
         return {"role": "user", "content": str(msg.content)}
 
 

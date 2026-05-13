@@ -31,9 +31,23 @@ class TestAllCombinations(unittest.TestCase):
                 with self.subTest(vert=vert, framework=framework):
                     # Mocking the request to /execute_task
                     # The app's config is already loaded, but we test the endpoint
+                    # Provide generic valid data for the default agent in each vertical
+                    input_data = {}
+                    if vert == "fintech":
+                        input_data = {
+                            "transaction_id": "T1",
+                            "account_id": "A1",
+                            "amount": 100.0,
+                        }
+                    elif vert == "healthcare":
+                        input_data = {"patient_id": "P1", "symptoms": ["cough"]}
+                    elif vert == "telecom":
+                        input_data = {"node_id": "N1", "fault_type": "PACKET_LOSS"}
+
                     payload = {
                         "task_id": "SMOKE-001",
                         "input": f"Smoke test for {vert} using {framework}",
+                        "input_data": input_data,
                         "context": {},
                     }
                     # We would typically override SUITE_CONFIG env var here

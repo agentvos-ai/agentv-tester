@@ -1,7 +1,7 @@
 # Environment Setup
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.14 (Industrial Evaluation Baseline)
 - Virtual Environment (recommended)
 - Access to LLM APIs (Gemini, OpenAI, Anthropic)
 
@@ -16,6 +16,13 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+### 📂 Forensic Workspace
+The suite maintains all persistent state within the `.agent_workspace/` directory. This is critical for forensic auditability and state persistence across test runs.
+
+- `.agent_workspace/db/`: Contains SQLite databases for all services (Git, DB, CRM, etc.).
+- `.agent_workspace/git/`: Contains real Git repository checkouts for `GitShim`.
+- `.agent_workspace/vfs/`: Virtual File System root for `FilesystemShim`.
 ```
 
 ## 2. Server Operations
@@ -126,6 +133,15 @@ python -m unittest tests/smoke/test_all_combos.py
 3. Implement `build_agent` and a corresponding `RunnableAgent` class.
 4. Use `@register_framework("new_framework")`.
 
+### Using the Stateful Simulator
+For integration testing without a real LLM, use the `mock` provider. It implements a **Stateful Tool Simulator** that can realistically mimic agent-tool interactions (e.g., querying a database before filing a compliance report).
+
+```yaml
+# suite.yaml
+active:
+  llm: "mock"
+```
+
 ### Adding a New LLM Provider
 1. Create `llm_providers/new_llm_provider.py`.
 2. Inherit from `BaseLLMProvider`.
@@ -141,7 +157,12 @@ The suite exposes a production-grade Flask endpoint:
   {
     "task_id": "REQ-001",
     "agent": "fraud_detection_agent",
-    "input": "User query...",
+    "input": "Investigate transaction...",
+    "input_data": {
+      "transaction_id": "TX-99",
+      "account_id": "ACC-1",
+      "amount": 500.0
+    },
     "context": {}
   }
   ```

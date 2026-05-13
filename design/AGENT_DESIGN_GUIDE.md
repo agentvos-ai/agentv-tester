@@ -25,12 +25,16 @@ class BaseAgent(ABC):
     def system_prompt(self) -> str:
         """Instructional core defining the agent's persona and logic."""
 
-    @abstractmethod
-    def get_tool_specs(self) -> List[Any]:
-        """Subset of enterprise shims exposed as tools to the agent."""
+    @property
+    def input_schema(self) -> Type[BaseModel]:
+        """Mandatory Pydantic schema for task input validation."""
+
+    @property
+    def output_schema(self) -> Type[BaseModel]:
+        """Mandatory Pydantic schema for agent output validation."""
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Primary entry point for external callers."""
+        """Primary entry point for external callers with automatic schema validation."""
 ```
 
 ### Execution Lifecycle
@@ -38,7 +42,7 @@ class BaseAgent(ABC):
 2. **Framework Binding**: On first execution, the agent uses the `framework` adapter to build a runtime instance (e.g., AG2, LangGraph).
 3. **Tool Mapping**: `get_tool_specs()` filters the global `shims` registry to only provide the necessary industrial endpoints.
 4. **Autonomous Execution**: The framework runs the agent loop against the LLM and the mapped tools.
-5. **Result Normalization**: Captures output and forensic tool calls for the evaluator.
+5. **Result Normalization**: Captures output, forensic tool calls, and **cost tracking** for the evaluator.
 
 ---
 
@@ -90,16 +94,25 @@ class BaseAgent(ABC):
 ## 5. Interface Schema (The Industrial Contract)
 
 ### 5.1 Input Schema (`POST /execute_task`)
+The suite uses **Pydantic V2** for industrial-grade input validation. Every agent defines an `input_schema`.
+
 ```json
 {
   "task_id": "REQ-12345",
   "agent": "fraud_detection_agent",
-  "input": "Analyze transaction TXN_998 for potential money laundering.",
+  "input_data": {
+    "transaction_id": "TXN_998",
+    "account_id": "ACC-001",
+    "amount": 1250.0
+  },
   "context": {
     "audit_level": "forensic"
   }
 }
 ```
+
+> [!NOTE]
+> For backward compatibility, the `input` field is still supported, but `input_data` is preferred for schema-validated execution.
 
 ### 5.2 The Context Protocol
 

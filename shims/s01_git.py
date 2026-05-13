@@ -59,7 +59,8 @@ class GitShim(BaseShim):
             try:
                 shutil.rmtree(self.workspace_root, onerror=rmtree_errorhandler)
             except Exception as e:
-                logger.warning(f"Failed to fully cleanup Git workspace: {str(e)}")
+                # Common on Windows due to file locks in rapid test cycles
+                logger.debug(f"Git cleanup deferred: {str(e)}")
 
     def reset(self) -> None:
         """Deterministic reset: clear and re-initialize a default repo."""

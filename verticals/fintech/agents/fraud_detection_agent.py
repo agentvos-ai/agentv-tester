@@ -1,6 +1,23 @@
-from typing import List
+from typing import List, Type
+from pydantic import BaseModel, Field
 from core.base_agent import BaseAgent
 from core.registry import register_agent
+
+
+class FraudDetectionInput(BaseModel):
+    transaction_id: str = Field(
+        ..., description="Unique identifier for the transaction."
+    )
+    account_id: str = Field(..., description="The ID of the account involved.")
+    amount: float = Field(
+        ..., gt=0, description="The monetary value of the transaction."
+    )
+
+
+class FraudDetectionOutput(BaseModel):
+    risk_score: float = Field(..., ge=0, le=100)
+    recommendation: str
+    action_taken: str
 
 
 @register_agent("fraud_detection_agent")
@@ -21,3 +38,11 @@ Your goal is to analyze transactions for potential fraud.
     @property
     def allowed_shims(self) -> List[str]:
         return ["database", "analytics", "compliance", "notification"]
+
+    @property
+    def input_schema(self) -> Type[BaseModel]:
+        return FraudDetectionInput
+
+    @property
+    def output_schema(self) -> Type[BaseModel]:
+        return FraudDetectionOutput

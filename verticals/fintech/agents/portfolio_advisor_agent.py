@@ -1,6 +1,24 @@
-from typing import List
+from typing import List, Type, Dict, Any
+from pydantic import BaseModel, Field
 from core.base_agent import BaseAgent
 from core.registry import register_agent
+
+
+class PortfolioAdvisorInput(BaseModel):
+    client_id: str = Field(..., description="Unique identifier for the client.")
+    risk_tolerance: str = Field(..., pattern="^(CONSERVATIVE|MODERATE|AGGRESSIVE)$")
+    investment_horizon_years: int = Field(..., ge=1)
+    current_holdings: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class PortfolioAdvisorOutput(BaseModel):
+    recommended_allocation: Dict[str, float] = Field(
+        ..., description="Target asset allocation percentages."
+    )
+    rebalance_actions: List[str] = Field(
+        ..., description="List of specific trades to execute."
+    )
+    justification: str
 
 
 @register_agent("portfolio_advisor_agent")
@@ -23,3 +41,11 @@ Any rebalancing above $50k requires human approval via HITL."""
             "search",
             "hitl",
         ]
+
+    @property
+    def input_schema(self) -> Type[BaseModel]:
+        return PortfolioAdvisorInput
+
+    @property
+    def output_schema(self) -> Type[BaseModel]:
+        return PortfolioAdvisorOutput

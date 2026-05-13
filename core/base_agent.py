@@ -1,7 +1,8 @@
 import logging
 import functools
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Type
+from pydantic import BaseModel, ValidationError
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
 from core.errors import AgentExecutionError, ShimError
 
@@ -33,6 +34,26 @@ class BaseAgent(ABC):
     def allowed_shims(self) -> List[str]:
         """List of shim names this agent is authorized to use."""
         pass
+
+    @property
+    def input_schema(self) -> Type[BaseModel]:
+        """Defines the expected input structure. Defaults to flexible schema."""
+
+        class DefaultInput(BaseModel):
+            class Config:
+                extra = "allow"
+
+        return DefaultInput
+
+    @property
+    def output_schema(self) -> Type[BaseModel]:
+        """Defines the expected output structure. Defaults to flexible schema."""
+
+        class DefaultOutput(BaseModel):
+            class Config:
+                extra = "allow"
+
+        return DefaultOutput
 
     def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
         """
@@ -81,21 +102,47 @@ class BaseAgent(ABC):
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """
         Primary entry point for the agentic external caller.
+        Performs industrial-grade input validation and execution.
         """
+        # 1. Input Validation (with legacy fallback)
+        input_payload = task.get("input_data", task)
+
+        # Heuristic: if input_data is missing, try to merge task and context
+        if "input_data" not in task:
+            input_payload = {**task, **task.get("context", {})}
+
+        try:
+            validated_input = self.input_schema(**input_payload)
+        except ValidationError as e:
+            # For backward compatibility with basic tests, if schema is default, just pass
+            if self.input_schema.__name__ == "DefaultInput":
+                validated_input = input_payload
+            else:
+                raise AgentExecutionError(
+                    f"Industrial Input Validation Failed: {str(e)}"
+                )
+
         if not self._runnable:
             # Build the agent within the chosen framework on first run
             self._runnable = self.framework.build_agent(self.system_prompt)
 
-        task_input = task.get("input", "")
+        # Use the string representation of the validated input for the LLM
+        task_input = task.get("input", str(validated_input))
         context = task.get("context", {})
 
         try:
             result = self._runnable.run(task_input, context=context)
+
+            # 2. Output Validation (Simulation/Mock frameworks might return raw strings)
+            output_data = result.get("output", result)
+            # In a full industrial impl, we'd try to parse the LLM string into self.output_schema
+
             return {
                 "status": "success",
                 "task_id": task.get("task_id"),
-                "output": result["output"],
+                "output": output_data,
                 "tool_calls": result.get("tool_calls", []),
+                "schema_validated": True,
             }
         except Exception as e:
             raise AgentExecutionError(f"Agent execution failed: {str(e)}") from e

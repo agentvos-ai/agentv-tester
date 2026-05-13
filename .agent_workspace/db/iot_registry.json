@@ -1,0 +1,20 @@
+{
+  "sensor-01": {
+    "type": "TEMPERATURE",
+    "unit": "C",
+    "base_val": 45.0,
+    "status": "ONLINE",
+    "trend": "STABLE"
+  },
+  "sensor-02": {
+    "type": "PRESSURE",
+    "unit": "PSI",
+    "base_val": 120.0,
+    "status": "ONLINE",
+    "trend": "RISING"
+  },
+  "actuator-01": {
+    "type": "VALVE",
+    "status": "OPEN"
+  }
+}

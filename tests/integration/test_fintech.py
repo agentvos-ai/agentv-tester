@@ -26,7 +26,11 @@ class TestFintechIntegration(unittest.TestCase):
             "task_id": "FT-INT-001",
             "agent": "fraud_detection_agent",
             "input": "Investigate transaction ID TX-9982 ($75,000). Check history and file SAR.",
-            "context": {"transaction_id": "TX-9982", "amount": 75000.0},
+            "context": {
+                "transaction_id": "TX-9982",
+                "account_id": "ACC-771",
+                "amount": 75000.0,
+            },
         }
 
         response = self.client.post("/execute_task", json=payload)

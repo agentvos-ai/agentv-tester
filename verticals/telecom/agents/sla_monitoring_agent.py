@@ -1,6 +1,21 @@
-from typing import List
+from typing import List, Type
+from pydantic import BaseModel, Field
 from core.base_agent import BaseAgent
 from core.registry import register_agent
+
+
+class SlaMonitoringInput(BaseModel):
+    service_id: str = Field(..., description="ID of the service to monitor.")
+    threshold_uptime: float = Field(99.9, ge=0, le=100)
+    monitoring_period_hours: int = Field(24, ge=1)
+
+
+class SlaMonitoringOutput(BaseModel):
+    actual_uptime: float = Field(..., ge=0, le=100)
+    breach_detected: bool
+    penalty_credit_amount: float = Field(
+        0.0, description="Amount credited to customer if SLA is breached."
+    )
 
 
 @register_agent("sla_monitoring_agent")
@@ -16,3 +31,11 @@ If SLAs are breached, calculate 'payment' credits and notify customers via 'emai
     @property
     def allowed_shims(self) -> List[str]:
         return ["analytics", "payment", "email", "database"]
+
+    @property
+    def input_schema(self) -> Type[BaseModel]:
+        return SlaMonitoringInput
+
+    @property
+    def output_schema(self) -> Type[BaseModel]:
+        return SlaMonitoringOutput

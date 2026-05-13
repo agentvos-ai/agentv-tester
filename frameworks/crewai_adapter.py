@@ -35,26 +35,34 @@ class CrewAIAdapter(BaseFrameworkAdapter):
 class CrewAIRunnable(RunnableAgent):
     def __init__(self, agent: Agent):
         self.agent = agent
+        self._captured_tools = []
 
     def run(
         self, task_str: str, context: Dict[str, Any] | None = None
     ) -> Dict[str, Any]:
         try:
+            self._captured_tools = []
             full_task = task_str
             if context:
                 ctx_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task_str}"
 
+            # CrewAI callback to capture tool usage
+            def step_callback(step):
+                if hasattr(step, "tool"):
+                    self._captured_tools.append(
+                        {"name": step.tool, "args": step.tool_input}
+                    )
+
             task = Task(
                 description=full_task,
                 agent=self.agent,
                 expected_output="Detailed final response.",
+                callback=step_callback,
             )
             crew = Crew(agents=[self.agent], tasks=[task], process=Process.sequential)
             result = crew.kickoff()
-            # CrewAI doesn't easily expose intermediate tool calls in the final result object
-            # for a single kickoff. For full industrial tracing, we would use a callback.
-            # For now, we return empty list but mark it for Phase 3 enhancement.
-            return {"output": str(result), "tool_calls": []}
+
+            return {"output": str(result), "tool_calls": self._captured_tools}
         except Exception as e:
             raise AgentExecutionError(f"CrewAI execution failed: {str(e)}") from e

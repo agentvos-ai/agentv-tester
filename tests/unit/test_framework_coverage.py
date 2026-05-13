@@ -125,7 +125,8 @@ def test_ag2_adapter_full(mock_llm, shim_tools, framework_config):
         res = client.create(params)
         assert res.choices[0].message.content == "Response"
         assert client.message_retrieval(res) is not None
-        assert client.cost(res) == 0.0
+        # Industrial cost should be non-zero
+        assert client.cost(res) > 0.0
         assert client.get_common_config_list([{}]) == [{}]
 
         # Test AG2Runnable
@@ -281,7 +282,15 @@ def test_langgraph_adapter_full(mock_llm, shim_tools, framework_config):
             assert (
                 adapter._lc_to_suite_msg(SystemMessage(content="s"))["role"] == "system"
             )
-            assert adapter._lc_to_suite_msg(MagicMock())["role"] == "user"
+            # Default case for unknown message types
+            from langchain_core.messages import BaseMessage
+
+            class UnknownMessage(BaseMessage):
+                type: str = "unknown"
+
+            assert (
+                adapter._lc_to_suite_msg(UnknownMessage(content="u"))["role"] == "user"
+            )
 
         # Test Runnable run
         mock_compiled = mock_graph.compile.return_value

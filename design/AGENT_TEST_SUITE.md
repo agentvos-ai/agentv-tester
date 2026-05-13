@@ -1,6 +1,6 @@
 # 🚀 ANTIGRAVITY CODING ASSISTANT PROMPT
 ## Multi-Vertical Agentic Test Suite
-### Target Harness: `najeed/ai-agent-eval-harness` (dev branch)
+### Target Harness: `najeed/ai-agent-eval-harness` (Industrial Baseline v3.0.0)
 
 ---
 

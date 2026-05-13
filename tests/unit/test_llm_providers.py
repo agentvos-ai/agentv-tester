@@ -28,10 +28,10 @@ class TestLLMProviders(unittest.TestCase):
 
     def test_mock_provider_logic(self):
         provider = MockLLMProvider(self.config)
-        # Verify the mock's rule-based logic
+        # Turn 1: Detect fraud keywords and trigger DB query
         messages = [{"role": "user", "content": "There is some fraud here"}]
         response = provider.chat(messages)
-        self.assertIn("SAR", response["choices"][0]["message"]["content"])
+        self.assertIn("db_query", response["choices"][0]["message"]["content"])
 
 
 if __name__ == "__main__":

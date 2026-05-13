@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, PropertyMock
 from core.registry import get_agent_class
 
 
@@ -27,23 +27,35 @@ def test_all_vertical_agents_coverage():
     mock_config = MagicMock()
     mock_framework = MagicMock()
     # Mock shims to have get_tool_specs
-    mock_shims = {
-        name: MagicMock()
-        for name in [
-            "database",
-            "analytics",
-            "compliance",
-            "notification",
-            "ehr",
-            "clinical_decision",
-            "billing",
-            "scheduling",
-            "crm",
-            "oss_bss",
-            "inventory",
-            "support_desk",
-        ]
-    }
+    all_shim_names = [
+        "database",
+        "analytics",
+        "compliance",
+        "notification",
+        "ehr",
+        "clinical_decision",
+        "billing",
+        "scheduling",
+        "crm",
+        "oss_bss",
+        "inventory",
+        "support_desk",
+        "rest_api",
+        "git",
+        "vector_db",
+        "knowledge_base",
+        "workflow",
+        "hitl",
+        "email",
+        "filesystem",
+        "social_media",
+        "iot",
+        "cicd",
+        "calendar",
+        "payment",
+        "search",
+    ]
+    mock_shims = {name: MagicMock() for name in all_shim_names}
     for s in mock_shims.values():
         s.get_tool_specs.return_value = [("tool", lambda x: x, "desc")]
 
@@ -60,7 +72,26 @@ def test_all_vertical_agents_coverage():
             assert len(tools) > 0
 
             # Exercise execute (mock runnable)
-            agent._runnable = MagicMock()
-            agent._runnable.run.return_value = {"output": "ok", "tool_calls": []}
-            res = agent.execute({"input": "test", "task_id": "1"})
-            assert res["status"] == "success"
+            # Mock schema property to bypass validation in coverage test
+            with patch.object(
+                agent_cls, "input_schema", new_callable=PropertyMock
+            ) as mock_schema:
+                mock_schema.return_value = MagicMock()
+
+                agent._runnable = MagicMock()
+                agent._runnable.run.return_value = {"output": "ok", "tool_calls": []}
+                res = agent.execute(
+                    {
+                        "input_data": {
+                            "transaction_id": "T1",
+                            "account_id": "A1",
+                            "amount": 10.0,
+                            "patient_id": "P1",
+                            "symptoms": ["none"],
+                            "node_id": "N1",
+                            "fault_type": "none",
+                        },
+                        "task_id": "1",
+                    }
+                )
+                assert res["status"] == "success"
