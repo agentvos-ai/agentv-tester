@@ -108,7 +108,7 @@ def test_iot_trend_simulation():
 
     # Read sensor-02 (RISING trend)
     r1 = shim.read_sensor("sensor-02")["reading"]
-    r2 = shim.read_sensor("sensor-02")["reading"]
+    shim.read_sensor("sensor-02")
     r3 = shim.read_sensor("sensor-02")["reading"]
 
     # Should be increasing (roughly, noise might fluctuate but base is rising)

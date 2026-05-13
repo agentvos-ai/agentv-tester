@@ -66,9 +66,9 @@ class ConfigLoader:
 
         # Ensure all plugins are registered before validation
         try:
-            import llm_providers
-            import frameworks
-            import shims
+            import llm_providers  # noqa: F401
+            import frameworks  # noqa: F401
+            import shims  # noqa: F401
         except ImportError:
             pass
 

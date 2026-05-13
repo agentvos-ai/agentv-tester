@@ -7,12 +7,12 @@ root_dir = Path(__file__).parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-from core.config_loader import SuiteConfig, LLMConfig, VerticalConfig
-from core.registry import get_llm_provider
+from core.config_loader import SuiteConfig, LLMConfig, VerticalConfig  # noqa: E402
+from core.registry import get_llm_provider  # noqa: E402
 
 # Ensure all plugins are registered
 
-from shims.registry import ShimRegistry
+from shims.registry import ShimRegistry  # noqa: E402
 
 
 @pytest.fixture
