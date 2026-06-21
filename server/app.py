@@ -145,6 +145,12 @@ def create_app() -> Flask:
             result = temp_agent.execute(data)
             return jsonify(result)
         finally:
+            if 'temp_agent' in locals() and hasattr(temp_agent, 'close'):
+                try:
+                    temp_agent.close()
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Error closing agent: {e}")
             shim_registry.shutdown_all()
 
     @app.route("/health", methods=["GET"])
@@ -178,6 +184,25 @@ def create_app() -> Flask:
         verticals_dir = Path(__file__).parent.parent / "config" / "verticals"
         all_verticals = [f.stem for f in verticals_dir.glob("*.yaml")]
 
+        # Load scenario details from YAML files
+        scenarios = []
+        scenarios_dir = Path(__file__).parent.parent / "verticals" / config.active_vertical / "scenarios"
+        import yaml
+        for scenario_name in active_vert.scenarios:
+            scenario_path = scenarios_dir / f"{scenario_name}.yaml"
+            if scenario_path.exists():
+                try:
+                    with open(scenario_path, "r", encoding="utf-8") as f:
+                        s_data = yaml.safe_load(f)
+                        scenarios.append({
+                            "id": s_data.get("task_id", scenario_name),
+                            "input": s_data.get("input", ""),
+                            "context": s_data.get("context", {})
+                        })
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Failed to load scenario {scenario_name}: {e}")
+
         return render_template(
             "index.html",
             agents=active_vert.agents,
@@ -187,8 +212,9 @@ def create_app() -> Flask:
             all_llms=all_llms,
             all_frameworks=all_frameworks,
             all_verticals=all_verticals,
-            scenarios=active_vert.scenarios,
+            scenarios=scenarios,
         )
+
 
     @app.route("/update_config", methods=["POST"])
     def update_config():

@@ -1,0 +1,56 @@
+{
+  "patients": {
+    "PAT-001": {
+      "patient_id": "PAT-001",
+      "name": "Jane Doe",
+      "medications": ["Lisinopril"],
+      "allergies": ["Penicillin"],
+      "conditions": ["Hypertension"],
+      "prescriptions": {
+        "Amoxicillin": {
+          "refills_remaining": 2,
+          "last_filled": "2026-05-10"
+        },
+        "Lisinopril": {
+          "refills_remaining": 0,
+          "last_filled": "2026-06-01"
+        }
+      },
+      "icd_codes": ["I10"],
+      "procedure_policy": {
+        "CPT-99213": {
+          "criteria_met": true,
+          "missing": []
+        }
+      }
+    },
+    "PAT-002": {
+      "patient_id": "PAT-002",
+      "name": "John Smith",
+      "medications": ["Lipitor"],
+      "allergies": ["Sulfa"],
+      "conditions": ["Hyperlipidemia"],
+      "prescriptions": {
+        "Lipitor": {
+          "refills_remaining": 5,
+          "last_filled": "2026-06-15"
+        }
+      },
+      "icd_codes": ["E78.5"],
+      "procedure_policy": {
+        "CPT-33510": {
+          "criteria_met": false,
+          "missing": ["Recent stress test report", "Cardiologist referral note"]
+        }
+      }
+    }
+  },
+  "payer_policies": {
+    "CPT-99213": {
+      "criteria": "Requires documented primary care diagnosis code (e.g. I10)."
+    },
+    "CPT-33510": {
+      "criteria": "Requires confirmation of coronary artery disease, failed medical management, and recent stress test."
+    }
+  }
+}

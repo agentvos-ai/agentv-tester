@@ -21,6 +21,14 @@ agents:
   - churn_prevention_agent
   - provisioning_agent
   - sla_monitoring_agent
+  - billing_adjustment_agent
+  - sim_swap_agent
+scenarios:
+  - billing_adjustment_happy
+  - billing_adjustment_fault
+  - sim_swap_happy
+  - sim_swap_fault
+
 domain_context: |
   You are a network operations AI in a Tier-1 telecom. You manage millions
   of subscribers and thousands of network nodes. SLA breach triggers immediate

@@ -1,0 +1,9 @@
+task_id: "TC-BA-HAPPY"
+agent: "billing_adjustment_agent"
+input: "Please process a dispute and issue a billing credit of $30.00 for account CUST-002, charge ID CHG-201. Support level: manager. Reason: Overlimit credit request."
+context:
+  account_id: "CUST-002"
+  amount: 30.00
+  reason: "Overlimit credit request"
+  charge_id: "CHG-201"
+  agent_role: "manager"

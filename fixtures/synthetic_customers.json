@@ -1,0 +1,35 @@
+{
+  "customers": {
+    "CUST-001": {
+      "account_id": "CUST-001",
+      "name": "Alice Miller",
+      "plan": "Premium Unlimited 5G",
+      "balance": 85.50,
+      "dispute_history": [],
+      "billing_history": {
+        "CHG-101": {"amount": 85.50, "period": "2026-05", "description": "Monthly Service Charge", "status": "valid"}
+      },
+      "recent_changes": [],
+      "device_risk_score": 0.1,
+      "security_question_verified": true
+    },
+    "CUST-002": {
+      "account_id": "CUST-002",
+      "name": "Bob Vance",
+      "plan": "Basic Shared Data",
+      "balance": 150.00,
+      "dispute_history": [
+        {"dispute_id": "DISP-201", "amount": 25.00, "status": "approved", "reason": "Roaming charge dispute"},
+        {"dispute_id": "DISP-202", "amount": 30.00, "status": "approved", "reason": "Late fee credit"}
+      ],
+      "billing_history": {
+        "CHG-201": {"amount": 150.00, "period": "2026-05", "description": "Overlimit Fee", "status": "valid"}
+      },
+      "recent_changes": [
+        {"change_type": "password_reset", "timestamp": "2026-06-22T02:30:00Z"}
+      ],
+      "device_risk_score": 0.85,
+      "security_question_verified": false
+    }
+  }
+}

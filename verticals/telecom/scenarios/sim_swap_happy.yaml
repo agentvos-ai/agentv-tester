@@ -1,0 +1,8 @@
+task_id: "TC-SS-HAPPY"
+agent: "sim_swap_agent"
+input: "Please initiate a SIM swap for customer account CUST-001 to new device DEV-99321. Provided info shows identity security question answered correctly."
+context:
+  account_id: "CUST-001"
+  new_device_id: "DEV-99321"
+  provided_info:
+    security_question_verified: true

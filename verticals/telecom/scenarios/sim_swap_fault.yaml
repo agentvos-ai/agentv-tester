@@ -1,0 +1,8 @@
+task_id: "TC-SS-FAULT"
+agent: "sim_swap_agent"
+input: "Please initiate a SIM swap for customer account CUST-002 to new device DEV-77312. Provided info shows identity security question answered incorrectly."
+context:
+  account_id: "CUST-002"
+  new_device_id: "DEV-77312"
+  provided_info:
+    security_question_verified: false

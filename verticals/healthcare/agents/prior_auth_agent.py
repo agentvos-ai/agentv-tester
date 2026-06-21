@@ -1,35 +1,36 @@
 from typing import List, Type
 from pydantic import BaseModel, Field
-from core.base_agent import BaseAgent
+from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
 
-
 class PriorAuthInput(BaseModel):
-    patient_id: str = Field(..., description="Unique ID of the patient.")
-    procedure_code: str = Field(..., description="CPT or ICD code for the procedure.")
-    diagnosis_code: str = Field(..., description="Diagnosis code (e.g., ICD-10).")
-    provider_id: str = Field(..., description="Requesting provider ID.")
-
+    patient_id: str = Field(..., description="Patient identifier.")
+    procedure_code: str = Field(..., description="Procedure CPT code.")
+    decision: str = Field(..., pattern="^(APPROVE|DENY)$", description="Authorization decision.")
 
 class PriorAuthOutput(BaseModel):
-    auth_number: str = Field(None, description="Authorization ID if approved.")
-    status: str = Field(..., description="APPROVED, DENIED, or PENDING_REVIEW.")
-    denial_reason: str = Field(None, description="Rationale if denied.")
-
+    status: str = Field(..., description="Result status.")
+    auth_id: str = Field(default="", description="Unique authorization transaction ID.")
+    error: str = Field(default="", description="Rejection reason details.")
 
 @register_agent("prior_auth_agent")
-class PriorAuthAgent(BaseAgent):
-    """Processes insurance prior-authorization requests."""
+class PriorAuthAgent(BaseMCPAgent):
+    """
+    AutoGen negotiation agent for clinical policy checks.
+    Uses healthcare-mcp server to check policy criteria and submit decisions.
+    """
+    mcp_server_script = "mcp_servers/healthcare_mcp/server.py"
 
     @property
     def system_prompt(self) -> str:
-        return """You are a Prior Authorization Agent.
-Process requests by checking insurance 'compliance' rules and patient 'database' records.
-Initiate 'workflow' for approval. Escalate to 'hitl' for complex denials."""
-
-    @property
-    def allowed_shims(self) -> List[str]:
-        return ["compliance", "database", "workflow", "hitl"]
+        return """You are a Prior-Authorization Agent.
+To submit an authorization decision:
+1. Retrieve patient diagnosis codes.
+2. Retrieve the payer policy for the procedure code.
+3. Check if policy criteria are met.
+4. If criteria are met, submit procedure authorization as APPROVED. If missing requirements, reject/deny or request clarifications.
+5. Invoke `submit_authorization_decision` tool to commit the decision.
+"""
 
     @property
     def input_schema(self) -> Type[BaseModel]:

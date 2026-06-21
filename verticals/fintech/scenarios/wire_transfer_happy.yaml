@@ -1,0 +1,9 @@
+task_id: "FT-WT-HAPPY"
+agent: "wire_transfer_agent"
+input: "Please initiate a wire transfer of $1000 from account ACC-001 to ACC-002 with memo 'invoice payment'."
+context:
+  account_id: "ACC-001"
+  payee_account: "ACC-002"
+  amount: 1000.0
+  currency: "USD"
+  memo: "invoice payment"

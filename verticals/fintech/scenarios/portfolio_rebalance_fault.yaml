@@ -1,0 +1,8 @@
+task_id: "FT-PR-FAULT"
+agent: "portfolio_rebalance_agent"
+input: "Please execute a rebalancing trade: SELL 50 shares of TSLA from account ACC-002."
+context:
+  account_id: "ACC-002"
+  ticker: "TSLA"
+  side: "SELL"
+  quantity: 50

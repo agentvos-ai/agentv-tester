@@ -1,0 +1,7 @@
+task_id: "HC-PA-FAULT"
+agent: "prior_auth_agent"
+input: "Please check and submit prior-authorization for procedure CPT-33510 for patient PAT-002 with decision APPROVE."
+context:
+  patient_id: "PAT-002"
+  procedure_code: "CPT-33510"
+  decision: "APPROVE"

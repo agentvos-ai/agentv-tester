@@ -1,0 +1,8 @@
+task_id: "HC-RX-FAULT"
+agent: "prescription_refill_agent"
+input: "Please refill Lisinopril for patient PAT-001, dosage 10mg, pharmacy PHARM-782."
+context:
+  patient_id: "PAT-001"
+  drug: "Lisinopril"
+  dosage: "10mg"
+  pharmacy_id: "PHARM-782"

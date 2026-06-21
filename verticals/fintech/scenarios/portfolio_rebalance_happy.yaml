@@ -1,0 +1,8 @@
+task_id: "FT-PR-HAPPY"
+agent: "portfolio_rebalance_agent"
+input: "Please execute a rebalancing trade: BUY 10 shares of AAPL for account ACC-001."
+context:
+  account_id: "ACC-001"
+  ticker: "AAPL"
+  side: "BUY"
+  quantity: 10

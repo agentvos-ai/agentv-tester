@@ -57,17 +57,31 @@ class SupportDeskShim(BaseShim):
     def shutdown(self) -> None:
         """Cleanup the database file."""
         if os.path.exists(self.db_path):
-            os.remove(self.db_path)
+            try:
+                os.remove(self.db_path)
+            except Exception as e:
+                logger.warning(f"Failed to remove db file: {e}")
 
     def reset(self) -> None:
         """Deterministic reset of the support desk state."""
-        self.shutdown()
+        if os.path.exists(self.db_path):
+            conn = sqlite3.connect(self.db_path)
+            try:
+                conn.execute("DROP TABLE IF EXISTS comments")
+                conn.execute("DROP TABLE IF EXISTS tickets")
+                conn.commit()
+            except Exception:
+                pass
+            finally:
+                conn.close()
+        
         self.setup()
 
         # Seed default tickets
         self.create_ticket(
             "Network Outage", "User reports intermittent signal in Zone B."
         )
+
 
     def create_ticket(self, title: str, description: str) -> str:
         """Creates a new support ticket."""

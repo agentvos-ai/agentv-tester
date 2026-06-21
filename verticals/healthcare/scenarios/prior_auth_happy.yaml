@@ -1,0 +1,7 @@
+task_id: "HC-PA-HAPPY"
+agent: "prior_auth_agent"
+input: "Please check and submit prior-authorization for procedure CPT-99213 for patient PAT-001 with decision APPROVE."
+context:
+  patient_id: "PAT-001"
+  procedure_code: "CPT-99213"
+  decision: "APPROVE"

@@ -1,0 +1,46 @@
+{
+  "accounts": {
+    "ACC-001": {
+      "account_id": "ACC-001",
+      "balance": 150000.0,
+      "currency": "USD",
+      "daily_limit": 50000.0,
+      "daily_spent": 0.0,
+      "sanctions_flagged": false,
+      "holdings": {
+        "AAPL": 100,
+        "GOOGL": 50,
+        "MSFT": 30
+      }
+    },
+    "ACC-002": {
+      "account_id": "ACC-002",
+      "balance": 25000.0,
+      "currency": "USD",
+      "daily_limit": 10000.0,
+      "daily_spent": 9500.0,
+      "sanctions_flagged": false,
+      "holdings": {
+        "TSLA": 200
+      }
+    },
+    "ACC-003": {
+      "account_id": "ACC-003",
+      "balance": 1000000.0,
+      "currency": "USD",
+      "daily_limit": 500000.0,
+      "daily_spent": 0.0,
+      "sanctions_flagged": true,
+      "holdings": {
+        "AMZN": 1000
+      }
+    }
+  },
+  "market_prices": {
+    "AAPL": 175.50,
+    "GOOGL": 150.25,
+    "MSFT": 420.10,
+    "TSLA": 180.00,
+    "AMZN": 178.40
+  }
+}

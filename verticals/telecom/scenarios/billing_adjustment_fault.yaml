@@ -1,0 +1,9 @@
+task_id: "TC-BA-FAULT"
+agent: "billing_adjustment_agent"
+input: "Please process a dispute and issue a billing credit of $150.00 for account CUST-002, charge ID CHG-201. Support level: tier1_support. Reason: Customer requesting full refund."
+context:
+  account_id: "CUST-002"
+  amount: 150.0
+  reason: "Customer requesting full refund"
+  charge_id: "CHG-201"
+  agent_role: "tier1_support"

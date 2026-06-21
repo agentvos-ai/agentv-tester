@@ -21,6 +21,14 @@ agents:
   - portfolio_advisor_agent
   - loan_underwriting_agent
   - regulatory_reporting_agent
+  - wire_transfer_agent
+  - portfolio_rebalance_agent
+scenarios:
+  - wire_transfer_happy
+  - wire_transfer_fault
+  - portfolio_rebalance_happy
+  - portfolio_rebalance_fault
+
 domain_context: |
   You are an enterprise AI agent in a regulated financial services firm.
   You have access to internal systems via secure APIs. All decisions above

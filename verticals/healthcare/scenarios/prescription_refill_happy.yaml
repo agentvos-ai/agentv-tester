@@ -1,0 +1,8 @@
+task_id: "HC-RX-HAPPY"
+agent: "prescription_refill_agent"
+input: "Please refill Amoxicillin for patient PAT-001, dosage 500mg, pharmacy PHARM-782."
+context:
+  patient_id: "PAT-001"
+  drug: "Amoxicillin"
+  dosage: "500mg"
+  pharmacy_id: "PHARM-782"
