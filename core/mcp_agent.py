@@ -1,19 +1,22 @@
 import sys
 import logging
 from typing import List, Tuple, Any, Dict
-from pydantic import BaseModel
 from core.base_agent import BaseAgent
 from core.mcp_client import MCPClient
 
 logger = logging.getLogger(__name__)
+
 
 class BaseMCPAgent(BaseAgent):
     """
     Subclass of BaseAgent that natively connects to an stdio or SSE-based MCP server
     and exposes its tools dynamically to the framework adapter.
     """
-    mcp_server_script: str = "" # Path relative to workspace root, e.g. "mcp_servers/finance_mcp/server.py"
-    mcp_transport: str = "stdio" # "stdio" or "sse"
+
+    mcp_server_script: str = (
+        ""  # Path relative to workspace root, e.g. "mcp_servers/finance_mcp/server.py"
+    )
+    mcp_transport: str = "stdio"  # "stdio" or "sse"
 
     def __init__(self, config: Any, framework: Any, shims: Dict[str, Any]):
         super().__init__(config, framework, shims)
@@ -37,20 +40,22 @@ class BaseMCPAgent(BaseAgent):
         self._mcp_client = MCPClient(
             command=sys.executable,
             args=[self.mcp_server_script],
-            transport=self.mcp_transport
+            transport=self.mcp_transport,
         )
 
         try:
             mcp_tools = self._mcp_client.list_tools()
         except Exception as e:
-            logger.error(f"Failed to load tools from MCP server {self.mcp_server_script}: {e}")
+            logger.error(
+                f"Failed to load tools from MCP server {self.mcp_server_script}: {e}"
+            )
             return []
 
         specs = []
         for tool in mcp_tools:
             name = tool["name"]
             desc = tool["description"]
-            
+
             # Create a wrapped callable that invokes call_tool on the MCPClient
             wrapped_func = self._create_mcp_wrapper(name)
             specs.append((name, wrapped_func, desc))
@@ -68,7 +73,7 @@ class BaseMCPAgent(BaseAgent):
             except Exception as e:
                 logger.error(f"Error during MCP tool call '{tool_name}': {e}")
                 return f"TOOL_ERROR: {str(e)}"
-        
+
         mcp_tool_wrapper.__name__ = tool_name
         return mcp_tool_wrapper
 
@@ -77,6 +82,6 @@ class BaseMCPAgent(BaseAgent):
         if self._mcp_client:
             self._mcp_client.close()
             self._mcp_client = None
-            
+
     def __del__(self):
         self.close()

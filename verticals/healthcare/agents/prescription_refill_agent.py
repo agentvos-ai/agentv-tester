@@ -1,7 +1,8 @@
-from typing import List, Type
+from typing import Type
 from pydantic import BaseModel, Field
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
+
 
 class PrescriptionRefillInput(BaseModel):
     patient_id: str = Field(..., description="Unique patient identifier.")
@@ -9,10 +10,14 @@ class PrescriptionRefillInput(BaseModel):
     dosage: str = Field(..., description="Dosage instructions.")
     pharmacy_id: str = Field(..., description="Target pharmacy identifier.")
 
+
 class PrescriptionRefillOutput(BaseModel):
     status: str = Field(..., description="Status of the prescription refill order.")
     order_id: str = Field(default="", description="Medication order ID if successful.")
-    error: str = Field(default="", description="Details of any clinical or system errors.")
+    error: str = Field(
+        default="", description="Details of any clinical or system errors."
+    )
+
 
 @register_agent("prescription_refill_agent")
 class PrescriptionRefillAgent(BaseMCPAgent):
@@ -20,9 +25,9 @@ class PrescriptionRefillAgent(BaseMCPAgent):
     CrewAI multi-agent prescription refill processor.
     Uses healthcare-mcp server to perform clinical checks (allergy, interaction, history) and place pharmacy orders.
     """
+
     mcp_server_script = "mcp_servers/healthcare_mcp/server.py"
     mcp_transport = "sse"
-
 
     @property
     def system_prompt(self) -> str:

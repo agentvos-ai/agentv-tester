@@ -81,3 +81,4 @@ data/raw/
 data/processed/
 artifacts/
 temp/
+/tasks/

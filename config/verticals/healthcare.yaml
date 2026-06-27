@@ -21,11 +21,14 @@ agents:
   - prior_auth_agent
   - patient_discharge_agent
   - prescription_refill_agent
+  - claims_processing_agent
 scenarios:
   - prescription_refill_happy
   - prescription_refill_fault
   - prior_auth_happy
   - prior_auth_fault
+  - claims_processing_happy
+  - claims_processing_fault
 
 domain_context: |
   You are a clinical AI assistant operating under HIPAA and clinical safety rules.

@@ -23,11 +23,14 @@ agents:
   - regulatory_reporting_agent
   - wire_transfer_agent
   - portfolio_rebalance_agent
+  - auto_insurance_claims_agent
 scenarios:
   - wire_transfer_happy
   - wire_transfer_fault
   - portfolio_rebalance_happy
   - portfolio_rebalance_fault
+  - auto_insurance_happy
+  - auto_insurance_fault
 
 domain_context: |
   You are an enterprise AI agent in a regulated financial services firm.

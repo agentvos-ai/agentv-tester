@@ -74,14 +74,13 @@ class SupportDeskShim(BaseShim):
                 pass
             finally:
                 conn.close()
-        
+
         self.setup()
 
         # Seed default tickets
         self.create_ticket(
             "Network Outage", "User reports intermittent signal in Zone B."
         )
-
 
     def create_ticket(self, title: str, description: str) -> str:
         """Creates a new support ticket."""

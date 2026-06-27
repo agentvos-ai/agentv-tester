@@ -1,18 +1,23 @@
-from typing import List, Type, Dict, Any
+from typing import Type
 from pydantic import BaseModel, Field
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
 
+
 class PortfolioRebalanceInput(BaseModel):
     account_id: str = Field(..., description="Unique client account ID.")
     ticker: str = Field(..., description="Stock ticker symbol to rebalance.")
-    side: str = Field(..., pattern="^(BUY|SELL)$", description="Order side: BUY or SELL.")
+    side: str = Field(
+        ..., pattern="^(BUY|SELL)$", description="Order side: BUY or SELL."
+    )
     quantity: int = Field(..., ge=1, description="Quantity of shares.")
+
 
 class PortfolioRebalanceOutput(BaseModel):
     status: str = Field(..., description="Status of the trade order execution.")
     trade_id: str = Field(default="", description="Trade ID if successful.")
     error: str = Field(default="", description="Error details if execution failed.")
+
 
 @register_agent("portfolio_rebalance_agent")
 class PortfolioRebalanceAgent(BaseMCPAgent):
@@ -20,9 +25,9 @@ class PortfolioRebalanceAgent(BaseMCPAgent):
     LangGraph stateful graph agent that manages portfolio rebalancing.
     Connects to the finance-mcp server to perform holdings lookups, risk assessment, and execute trades.
     """
+
     mcp_server_script = "mcp_servers/finance_mcp/server.py"
     mcp_transport = "sse"
-
 
     @property
     def system_prompt(self) -> str:

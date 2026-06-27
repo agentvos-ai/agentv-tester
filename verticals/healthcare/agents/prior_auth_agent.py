@@ -1,17 +1,22 @@
-from typing import List, Type
+from typing import Type
 from pydantic import BaseModel, Field
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
 
+
 class PriorAuthInput(BaseModel):
     patient_id: str = Field(..., description="Patient identifier.")
     procedure_code: str = Field(..., description="Procedure CPT code.")
-    decision: str = Field(..., pattern="^(APPROVE|DENY)$", description="Authorization decision.")
+    decision: str = Field(
+        ..., pattern="^(APPROVE|DENY)$", description="Authorization decision."
+    )
+
 
 class PriorAuthOutput(BaseModel):
     status: str = Field(..., description="Result status.")
     auth_id: str = Field(default="", description="Unique authorization transaction ID.")
     error: str = Field(default="", description="Rejection reason details.")
+
 
 @register_agent("prior_auth_agent")
 class PriorAuthAgent(BaseMCPAgent):
@@ -19,6 +24,7 @@ class PriorAuthAgent(BaseMCPAgent):
     AutoGen negotiation agent for clinical policy checks.
     Uses healthcare-mcp server to check policy criteria and submit decisions.
     """
+
     mcp_server_script = "mcp_servers/healthcare_mcp/server.py"
 
     @property

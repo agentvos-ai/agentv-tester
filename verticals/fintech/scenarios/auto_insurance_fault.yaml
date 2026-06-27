@@ -1,0 +1,5 @@
+task_id: "FT-AI-FAULT"
+agent: "auto_insurance_claims_agent"
+input: "Process auto claim AUTO-CLAIM-002. Validate accident report, check risk flags, and apply policy rules."
+context:
+  claim_id: "AUTO-CLAIM-002"

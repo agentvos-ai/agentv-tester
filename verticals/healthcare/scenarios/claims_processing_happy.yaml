@@ -1,0 +1,5 @@
+task_id: "HC-CP-HAPPY"
+agent: "claims_processing_agent"
+input: "Process claim CLAIM-001. Validate fields, check for duplicates, and evaluate patient policy rules."
+context:
+  claim_id: "CLAIM-001"

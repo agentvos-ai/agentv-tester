@@ -10,17 +10,26 @@ from mcp.client.sse import sse_client
 
 logger = logging.getLogger(__name__)
 
+
 def find_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
+
 
 class MCPClient:
     """
     Client wrapper for stdio and SSE-based MCP servers.
     Handles startup, initialization, tool discovery, and tool execution.
     """
-    def __init__(self, command: str, args: List[str], transport: str = "stdio", env: Dict[str, str] = None):
+
+    def __init__(
+        self,
+        command: str,
+        args: List[str],
+        transport: str = "stdio",
+        env: Dict[str, str] = None,
+    ):
         self.command = command
         self.args = args
         self.transport = transport
@@ -28,7 +37,7 @@ class MCPClient:
         self.server_process = None
         self.sse_port = None
         self._loop = None
-        
+
         if self.transport == "sse":
             self.sse_port = find_free_port()
             # Append sse and port arguments to the server process command line
@@ -36,18 +45,14 @@ class MCPClient:
             self._start_sse_server()
         else:
             self.server_params = StdioServerParameters(
-                command=command,
-                args=args,
-                env=env
+                command=command, args=args, env=env
             )
 
     def _start_sse_server(self):
         """Starts the MCP server in SSE mode as a background process and waits for it to be ready."""
         cmd = [self.command] + self.server_args
         logger.info(f"Starting MCP server in SSE mode: {' '.join(cmd)}")
-        self.server_process = subprocess.Popen(
-            cmd
-        )
+        self.server_process = subprocess.Popen(cmd)
         # Poll the server port until it's open, with a timeout of 10 seconds
         start_time = time.time()
         while time.time() - start_time < 10:
@@ -60,11 +65,9 @@ class MCPClient:
                     return
                 except (ConnectionRefusedError, socket.timeout):
                     time.sleep(0.2)
-        logger.warning(f"SSE server on port {self.sse_port} did not start responding in time.")
-
-
-
-
+        logger.warning(
+            f"SSE server on port {self.sse_port} did not start responding in time."
+        )
 
     def close(self):
         """Terminates the background server process if running in SSE mode."""
@@ -85,7 +88,11 @@ class MCPClient:
                     await session.initialize()
                     response = await session.list_tools()
                     return [
-                        {"name": tool.name, "description": tool.description, "input_schema": tool.inputSchema}
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "input_schema": tool.inputSchema,
+                        }
                         for tool in response.tools
                     ]
         else:
@@ -94,7 +101,11 @@ class MCPClient:
                     await session.initialize()
                     response = await session.list_tools()
                     return [
-                        {"name": tool.name, "description": tool.description, "input_schema": tool.inputSchema}
+                        {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "input_schema": tool.inputSchema,
+                        }
                         for tool in response.tools
                     ]
 
@@ -126,7 +137,9 @@ class MCPClient:
         try:
             loop = self._get_loop()
             if loop.is_running():
-                future = asyncio.run_coroutine_threadsafe(self._async_list_tools(), loop)
+                future = asyncio.run_coroutine_threadsafe(
+                    self._async_list_tools(), loop
+                )
                 return future.result()
             return loop.run_until_complete(self._async_list_tools())
         except Exception as e:
@@ -138,10 +151,13 @@ class MCPClient:
         try:
             loop = self._get_loop()
             if loop.is_running():
-                future = asyncio.run_coroutine_threadsafe(self._async_call_tool(name, arguments), loop)
+                future = asyncio.run_coroutine_threadsafe(
+                    self._async_call_tool(name, arguments), loop
+                )
                 return future.result()
             return loop.run_until_complete(self._async_call_tool(name, arguments))
         except Exception as e:
-            logger.error(f"Failed to call tool {name} on MCP server: {e}", exc_info=True)
+            logger.error(
+                f"Failed to call tool {name} on MCP server: {e}", exc_info=True
+            )
             raise
-

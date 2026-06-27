@@ -1,7 +1,8 @@
-from typing import List, Type
+from typing import Type
 from pydantic import BaseModel, Field
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
+
 
 class WireTransferInput(BaseModel):
     account_id: str = Field(..., description="The source account ID.")
@@ -10,10 +11,14 @@ class WireTransferInput(BaseModel):
     currency: str = Field("USD", description="Currency of transfer.")
     memo: str = Field(..., description="Reason/memo for transfer.")
 
+
 class WireTransferOutput(BaseModel):
     status: str = Field(..., description="Status of the transfer execution.")
-    transfer_id: str = Field(default="", description="The unique transfer ID if successful.")
+    transfer_id: str = Field(
+        default="", description="The unique transfer ID if successful."
+    )
     error: str = Field(default="", description="Error details if the transfer failed.")
+
 
 @register_agent("wire_transfer_agent")
 class WireTransferAgent(BaseMCPAgent):
@@ -21,6 +26,7 @@ class WireTransferAgent(BaseMCPAgent):
     LangChain ReAct-style agent that manages wire transfer processing.
     Connects to the finance-mcp server to validate payee, check limits, check sanctions, and execute transfers.
     """
+
     mcp_server_script = "mcp_servers/finance_mcp/server.py"
 
     @property

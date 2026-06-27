@@ -1,4 +1,3 @@
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -8,7 +7,7 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(root_dir))
 
 from core.mcp_client import MCPClient
-from core.registry import get_agent_class
+
 
 class TestMCPIntegration(unittest.TestCase):
     """
@@ -19,14 +18,14 @@ class TestMCPIntegration(unittest.TestCase):
         client = MCPClient(
             command=sys.executable,
             args=["mcp_servers/finance_mcp/server.py"],
-            transport="stdio"
+            transport="stdio",
         )
         try:
             tools = client.list_tools()
             tool_names = [t["name"] for t in tools]
             self.assertIn("get_account_balance", tool_names)
             self.assertIn("initiate_wire_transfer", tool_names)
-            
+
             # Call tool
             res = client.call_tool("get_account_balance", {"account_id": "ACC-001"})
             self.assertIsNotNone(res)
@@ -40,14 +39,14 @@ class TestMCPIntegration(unittest.TestCase):
         client = MCPClient(
             command=sys.executable,
             args=["mcp_servers/finance_mcp/server.py"],
-            transport="sse"
+            transport="sse",
         )
         try:
             tools = client.list_tools()
             tool_names = [t["name"] for t in tools]
             self.assertIn("get_account_balance", tool_names)
             self.assertIn("initiate_wire_transfer", tool_names)
-            
+
             # Call tool
             res = client.call_tool("get_account_balance", {"account_id": "ACC-001"})
             self.assertIsNotNone(res)
@@ -58,7 +57,7 @@ class TestMCPIntegration(unittest.TestCase):
         client = MCPClient(
             command=sys.executable,
             args=["mcp_servers/healthcare_mcp/server.py"],
-            transport="sse"
+            transport="sse",
         )
         try:
             tools = client.list_tools()
@@ -72,7 +71,7 @@ class TestMCPIntegration(unittest.TestCase):
         client = MCPClient(
             command=sys.executable,
             args=["mcp_servers/telecom_mcp/server.py"],
-            transport="sse"
+            transport="sse",
         )
         try:
             tools = client.list_tools()
@@ -81,6 +80,7 @@ class TestMCPIntegration(unittest.TestCase):
             self.assertIn("initiate_sim_swap", tool_names)
         finally:
             client.close()
+
 
 if __name__ == "__main__":
     unittest.main()
