@@ -6,7 +6,7 @@ from pathlib import Path
 root_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(root_dir))
 
-from core.mcp_client import MCPClient
+from core.mcp_client import MCPClient  # noqa: E402
 
 
 class TestMCPIntegration(unittest.TestCase):

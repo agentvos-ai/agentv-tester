@@ -31,10 +31,37 @@ load_dotenv()
 
 # Environment Audit & Purge: Ensure YAML priority by clearing persistent overrides
 # NOTE: This only purges on first import of the module.
-active_envs = [k for k in os.environ.keys() if k.startswith("ACTIVE_")]
-for k in active_envs:
-    sys.stderr.write(f"PURGING ENV OVERRIDE: {k}={os.environ[k]}\n")
-    del os.environ[k]
+active_envs = {k: os.environ[k] for k in os.environ.keys() if k.startswith("ACTIVE_")}
+if active_envs:
+    # Persist the environment overrides into suite.yaml on startup
+    config_path = Path(__file__).parent.parent / "config" / "suite.yaml"
+    import yaml
+
+    try:
+        with open(config_path, "r") as f:
+            suite = yaml.safe_load(f) or {}
+    except Exception:
+        suite = {}
+
+    if "active" not in suite:
+        suite["active"] = {}
+
+    for k, v in active_envs.items():
+        sys.stderr.write(f"APPLYING ENV OVERRIDE TO CONFIG: {k}={v}\n")
+        # Map ACTIVE_VERTICAL -> vertical, ACTIVE_FRAMEWORK -> framework, ACTIVE_LLM -> llm
+        config_key = k.replace("ACTIVE_", "").lower()
+        suite["active"][config_key] = v
+
+    try:
+        with open(config_path, "w") as f:
+            yaml.dump(suite, f, default_flow_style=False)
+    except Exception as e:
+        sys.stderr.write(f"Failed to persist env overrides to suite.yaml: {e}\n")
+
+    # Now purge them from os.environ so they do not override /update_config on reload
+    for k in active_envs.keys():
+        sys.stderr.write(f"PURGING ENV OVERRIDE: {k}={os.environ[k]}\n")
+        del os.environ[k]
 
 # Suppress noisy upstream deprecations for a clean evaluation environment
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="google.genai")

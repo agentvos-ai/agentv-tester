@@ -33,22 +33,41 @@ class GeminiProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Synchronous chat with Gemini."""
-        try:
-            contents, system_instruction = self._prepare_contents(messages)
+        import time
+        import sys
 
-            response = self.client.models.generate_content(
-                model=self.config.model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    tools=tools,
-                    temperature=kwargs.get("temperature", 0.1),
-                ),
-            )
+        max_retries = 5
+        retry_delay = 15
+        for attempt in range(max_retries):
+            try:
+                contents, system_instruction = self._prepare_contents(messages)
 
-            return self._normalize_response(response)
-        except Exception as e:
-            raise LLMProviderError(f"Gemini chat failed: {str(e)}") from e
+                response = self.client.models.generate_content(
+                    model=self.config.model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        tools=tools,
+                        temperature=kwargs.get("temperature", 0.1),
+                    ),
+                )
+
+                # Add a small delay after a successful call to avoid hitting the rate limit
+                time.sleep(2.0)
+
+                return self._normalize_response(response)
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    if attempt < max_retries - 1:
+                        sys.stderr.write(
+                            f"\n[Gemini] 429 Rate Limit hit. Retrying in {retry_delay}s... (Attempt {attempt + 1}/{max_retries})\n"
+                        )
+                        sys.stderr.flush()
+                        time.sleep(retry_delay)
+                        retry_delay += 10
+                        continue
+                raise LLMProviderError(f"Gemini chat failed: {str(e)}") from e
 
     def stream(
         self,
