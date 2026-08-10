@@ -1,5 +1,6 @@
-from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -16,7 +17,7 @@ class ProvisioningInput(BaseModel):
 
 class ProvisioningOutput(BaseModel):
     activation_status: str = Field(..., description="ACTIVE, PENDING, or FAILED.")
-    provisioned_resources: List[str] = Field(
+    provisioned_resources: list[str] = Field(
         default_factory=list, description="IDs of allocated network resources."
     )
     error_log: str = Field(None)
@@ -33,13 +34,13 @@ Process orders from 'rest_api', update 'database' records, and trigger 'workflow
 Verify 'compliance' with regional telecommunications laws."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["rest_api", "database", "workflow", "compliance"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return ProvisioningInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return ProvisioningOutput

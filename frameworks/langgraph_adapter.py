@@ -1,18 +1,21 @@
 import operator
-from typing import Annotated, Sequence, TypedDict, List, Any, Dict
-from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
+from collections.abc import Sequence
+from typing import Annotated, Any, TypedDict
+
 from langchain_core.messages import (
+    AIMessage,
     BaseMessage,
     HumanMessage,
-    AIMessage,
     SystemMessage,
     ToolMessage,
 )
 from langchain_core.tools import StructuredTool
+from langgraph.graph import END, StateGraph
+from langgraph.prebuilt import ToolNode
+
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
-from core.registry import register_framework
 from core.errors import AgentExecutionError
+from core.registry import register_framework
 from core.tool_utils import ToolNormalizer
 
 
@@ -35,7 +38,7 @@ class LangGraphAdapter(BaseFrameworkAdapter):
         # 2. Define the Graph
         workflow = StateGraph(AgentState)
 
-        def call_model(state: AgentState) -> Dict[str, Any]:
+        def call_model(state: AgentState) -> dict[str, Any]:
             # Convert LC messages back to suite format for our LLM provider
             suite_messages = [self._lc_to_suite_msg(m) for m in state["messages"]]
             if system_prompt:
@@ -84,7 +87,7 @@ class LangGraphAdapter(BaseFrameworkAdapter):
         graph = workflow.compile()
         return LangGraphRunnable(graph)
 
-    def _get_lc_tools(self) -> List[StructuredTool]:
+    def _get_lc_tools(self) -> list[StructuredTool]:
         lc_tools = []
         for name, fn, desc in self.shim_tools:
             lc_tools.append(
@@ -92,7 +95,7 @@ class LangGraphAdapter(BaseFrameworkAdapter):
             )
         return lc_tools
 
-    def _lc_to_suite_msg(self, msg: BaseMessage) -> Dict[str, Any]:
+    def _lc_to_suite_msg(self, msg: BaseMessage) -> dict[str, Any]:
         if isinstance(msg, HumanMessage):
             return {"role": "user", "content": str(msg.content)}
         if isinstance(msg, AIMessage):
@@ -130,7 +133,7 @@ class LangGraphRunnable(RunnableAgent):
     def __init__(self, graph: Any):
         self.graph = graph
 
-    def run(self, task: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    def run(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
             full_task = task
             if context:
@@ -145,4 +148,4 @@ class LangGraphRunnable(RunnableAgent):
                 "tool_calls": getattr(last_msg, "tool_calls", []),
             }
         except Exception as e:
-            raise AgentExecutionError(f"LangGraph execution failed: {str(e)}") from e
+            raise AgentExecutionError(f"LangGraph execution failed: {e!s}") from e

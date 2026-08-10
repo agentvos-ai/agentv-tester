@@ -1,10 +1,13 @@
 import os
-from typing import List, Dict, Any, Generator, Tuple
+from collections.abc import Generator
+from typing import Any
+
 from google import genai
 from google.genai import types
+
 from core.base_llm import BaseLLMProvider
-from core.registry import register_llm
 from core.errors import LLMProviderError
+from core.registry import register_llm
 
 
 @register_llm("gemini")
@@ -28,13 +31,13 @@ class GeminiProvider(BaseLLMProvider):
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Synchronous chat with Gemini."""
-        import time
         import sys
+        import time
 
         max_retries = 5
         retry_delay = 15
@@ -67,14 +70,14 @@ class GeminiProvider(BaseLLMProvider):
                         time.sleep(retry_delay)
                         retry_delay += 10
                         continue
-                raise LLMProviderError(f"Gemini chat failed: {str(e)}") from e
+                raise LLMProviderError(f"Gemini chat failed: {e!s}") from e
 
     def stream(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any], None, None]:
         """Full industrial streaming implementation for Gemini."""
         try:
             contents, system_instruction = self._prepare_contents(messages)
@@ -92,11 +95,11 @@ class GeminiProvider(BaseLLMProvider):
             for chunk in response:
                 yield self._normalize_response(chunk)
         except Exception as e:
-            raise LLMProviderError(f"Gemini stream failed: {str(e)}") from e
+            raise LLMProviderError(f"Gemini stream failed: {e!s}") from e
 
     def _prepare_contents(
-        self, messages: List[Dict[str, str]]
-    ) -> Tuple[List[Any], str | None]:
+        self, messages: list[dict[str, str]]
+    ) -> tuple[list[Any], str | None]:
         contents = []
         system_instruction = None
         for msg in messages:
@@ -115,7 +118,7 @@ class GeminiProvider(BaseLLMProvider):
     def supports_tool_calling(self) -> bool:
         return True
 
-    def _normalize_response(self, response: Any) -> Dict[str, Any]:
+    def _normalize_response(self, response: Any) -> dict[str, Any]:
         """Normalizes Gemini response to OpenAI-compatible format."""
         text = response.text if hasattr(response, "text") and response.text else ""
         tool_calls = []

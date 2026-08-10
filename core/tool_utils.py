@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
 
 class ToolNormalizer:
@@ -9,7 +9,7 @@ class ToolNormalizer:
     """
 
     @staticmethod
-    def to_openai(shim_tools: List[Tuple[str, Any, str]]) -> List[Dict[str, Any]]:
+    def to_openai(shim_tools: list[tuple[str, Any, str]]) -> list[dict[str, Any]]:
         """Converts suite tools to OpenAI function format."""
         openai_tools = []
         for name, _, desc in shim_tools:
@@ -30,7 +30,7 @@ class ToolNormalizer:
         return openai_tools
 
     @staticmethod
-    def to_gemini(shim_tools: List[Tuple[str, Any, str]]) -> List[Dict[str, Any]]:
+    def to_gemini(shim_tools: list[tuple[str, Any, str]]) -> list[dict[str, Any]]:
         """Converts suite tools to Google Gemini function_declarations format."""
         declarations = []
         for name, _, desc in shim_tools:
@@ -49,7 +49,7 @@ class ToolNormalizer:
         return [{"function_declarations": declarations}]
 
     @staticmethod
-    def to_claude(shim_tools: List[Tuple[str, Any, str]]) -> List[Dict[str, Any]]:
+    def to_claude(shim_tools: list[tuple[str, Any, str]]) -> list[dict[str, Any]]:
         """Converts suite tools to Anthropic Claude tool format."""
         claude_tools = []
         for name, _, desc in shim_tools:

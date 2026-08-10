@@ -3,8 +3,9 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 import unittest
-from llm_providers.mock_provider import MockLLMProvider
+
 from core.config_loader import LLMConfig
+from llm_providers.mock_provider import MockLLMProvider
 
 
 class TestLLMProviders(unittest.TestCase):

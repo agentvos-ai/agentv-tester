@@ -1,11 +1,13 @@
+import io
 import logging
 import os
 import sqlite3
+from typing import Any
+
 import numpy as np
-import io
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -77,7 +79,7 @@ class VectorDbShim(BaseShim):
         self.setup()
 
     def upsert(
-        self, collection: str, vector: List[float], metadata: Dict[str, Any]
+        self, collection: str, vector: list[float], metadata: dict[str, Any]
     ) -> str:
         """Insert a vector and its metadata into a collection."""
         import json
@@ -91,13 +93,13 @@ class VectorDbShim(BaseShim):
             conn.commit()
             return f"Vector upserted into collection '{collection}'."
         except Exception as e:
-            raise ShimError(f"Failed to upsert vector: {str(e)}")
+            raise ShimError(f"Failed to upsert vector: {e!s}")
         finally:
             conn.close()
 
     def query_similar(
-        self, collection: str, vector: List[float], limit: int = 3
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, vector: list[float], limit: int = 3
+    ) -> list[dict[str, Any]]:
         """Perform a cosine similarity search against stored vectors."""
         import json
 
@@ -133,7 +135,7 @@ class VectorDbShim(BaseShim):
         finally:
             conn.close()
 
-    def delete_vector(self, collection: str, filter_metadata: Dict[str, Any]) -> str:
+    def delete_vector(self, collection: str, filter_metadata: dict[str, Any]) -> str:
         """Deletes vectors from a collection based on metadata matching."""
         import json
 
@@ -160,7 +162,7 @@ class VectorDbShim(BaseShim):
         finally:
             conn.close()
 
-    def list_collections(self) -> List[str]:
+    def list_collections(self) -> list[str]:
         """Lists all collections in the vector database."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -169,7 +171,7 @@ class VectorDbShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "vector_upsert",

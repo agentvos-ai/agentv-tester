@@ -1,7 +1,5 @@
-import unittest
-
-# ruff: noqa: E402
 import sys
+import unittest
 from pathlib import Path
 
 # Ensure project root is in sys.path

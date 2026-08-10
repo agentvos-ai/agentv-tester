@@ -1,9 +1,10 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ class EmailShim(BaseShim):
                 (sender, recipient, subject, body, "SENT"),
             )
             # Also simulate receiving if recipient is local
-            if recipient.endswith("@enterprise.com") or recipient.endswith("@corp.com"):
+            if recipient.endswith(("@enterprise.com", "@corp.com")):
                 conn.execute(
                     "INSERT INTO messages (sender, recipient, subject, body, folder) VALUES (?, ?, ?, ?, ?)",
                     (sender, recipient, subject, body, "INBOX"),
@@ -103,11 +104,11 @@ class EmailShim(BaseShim):
             conn.commit()
             return f"Email sent to {recipient}."
         except Exception as e:
-            raise ShimError(f"Failed to send email: {str(e)}")
+            raise ShimError(f"Failed to send email: {e!s}")
         finally:
             conn.close()
 
-    def search_emails(self, query: str) -> List[Dict[str, Any]]:
+    def search_emails(self, query: str) -> list[dict[str, Any]]:
         """Searches the mailbox for messages matching a query."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -132,7 +133,7 @@ class EmailShim(BaseShim):
 
     def list_inbox(
         self, recipient: str = "agent@enterprise.com"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Lists all messages in the inbox for a specific recipient."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -154,7 +155,7 @@ class EmailShim(BaseShim):
         finally:
             conn.close()
 
-    def read_email(self, msg_id: str) -> Dict[str, Any]:
+    def read_email(self, msg_id: str) -> dict[str, Any]:
         """Reads a specific email and marks it as read."""
         # Support 'msg_1' format from legacy tests
         db_id = msg_id.replace("msg_", "")
@@ -183,7 +184,7 @@ class EmailShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("email_send", self.send_email, "Send an enterprise email."),
             ("email_list", self.list_inbox, "List messages in an inbox."),

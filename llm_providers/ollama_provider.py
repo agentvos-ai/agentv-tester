@@ -1,6 +1,8 @@
 from typing import Any
-from .openai_provider import OpenAIProvider
+
 from core.registry import register_llm
+
+from .openai_provider import OpenAIProvider
 
 
 @register_llm("ollama")

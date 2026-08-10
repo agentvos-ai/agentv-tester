@@ -1,11 +1,12 @@
+import hashlib
 import logging
 import os
 import sqlite3
-import hashlib
 import time
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -176,7 +177,7 @@ class SecurityShim(BaseShim):
         finally:
             conn.close()
 
-    def get_audit_log(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_audit_log(self, limit: int = 10) -> list[dict[str, Any]]:
         """Retrieves recent security audit logs."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -196,7 +197,7 @@ class SecurityShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "sec_auth",

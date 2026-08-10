@@ -1,4 +1,5 @@
 import pytest
+
 from core.errors import ShimError
 from shims.registry import ShimRegistry
 
@@ -353,8 +354,8 @@ def test_vector_db_coverage():
 
 
 def test_search_coverage():
-    from shims.s16_search import SearchShim
     from shims.s04_knowledge_base import KnowledgeBaseShim
+    from shims.s16_search import SearchShim
 
     # Setup KB first so search can find it
     kb = KnowledgeBaseShim()

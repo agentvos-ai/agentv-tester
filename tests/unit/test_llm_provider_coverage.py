@@ -1,7 +1,9 @@
-import pytest
 import os
 import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from core.errors import LLMProviderError
 
 
@@ -16,9 +18,9 @@ def setup_mocks():
 
 setup_mocks()
 
-from llm_providers.openai_provider import OpenAIProvider  # noqa: E402
-from llm_providers.claude_provider import ClaudeProvider  # noqa: E402
-from llm_providers.gemini_provider import GeminiProvider  # noqa: E402
+from llm_providers.claude_provider import ClaudeProvider
+from llm_providers.gemini_provider import GeminiProvider
+from llm_providers.openai_provider import OpenAIProvider
 
 
 @pytest.fixture

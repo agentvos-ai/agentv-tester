@@ -17,6 +17,7 @@ Six agents, two per vertical, deliberately spread across all four supported fram
 | 4 | Prior-Authorization Agent | Healthcare | AutoGen | `submit_authorization_decision` |
 | 5 | Billing Adjustment Agent | Telecom | LangChain | `issue_billing_credit` |
 | 6 | SIM Swap / Account Security Agent | Telecom | LangGraph | `initiate_sim_swap` |
+| 7 | EPC Subcontractor Vetting Agent | Construction | LangGraph | `issue_notice_to_proceed` |
 
 Adjust agent count, framework assignment, or scenario set as needed — this is a proposed starting scope, not a fixed requirement.
 

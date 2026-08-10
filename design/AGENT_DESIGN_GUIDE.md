@@ -14,9 +14,11 @@ The interface is designed for high-fidelity evaluation and forensic tracking.
 
 ```python
 class BaseAgent(ABC):
-    def __init__(self, config: Any, framework: BaseFrameworkAdapter, shims: Dict[str, Any]):
+    def __init__(
+        self, config: Any, framework: BaseFrameworkAdapter, shims: Dict[str, Any]
+    ):
         """
-        Initializes the agent with industrial configuration, a framework adapter, 
+        Initializes the agent with industrial configuration, a framework adapter,
         and the full suite of available enterprise shims.
         """
 
@@ -46,18 +48,19 @@ class BaseAgent(ABC):
 
 ---
 
-## 2. Agent Directory: Fintech Vertical
+## 2. Agent Directory: Fintech & Construction Verticals
 
-| Agent | Purpose | Primary Tools |
-| :--- | :--- | :--- |
-| **Fraud Detection** | Monitors transactions, applies risk scoring, and files Suspicious Activity Reports (SAR). | `database`, `analytics`, `compliance`, `notification` |
-| **Loan Underwriting** | Evaluates creditworthiness, checks bureau APIs, and manages multi-step approval workflows. | `database`, `rest_api`, `compliance`, `workflow`, `hitl`, `email` |
-| **Portfolio Advisor** | Analyzes market trends and rebalances asset allocations based on risk profiles. | `database`, `analytics`, `rest_api`, `search`, `email` |
-| **Regulatory Reporting** | Automates the generation and filing of KYC/AML and financial compliance reports. | `database`, `compliance`, `document_processor`, `sftp` |
+| Agent | Vertical | Purpose | Primary Tools |
+| :--- | :--- | :--- | :--- |
+| **Fraud Detection** | Fintech | Monitors transactions, applies risk scoring, and files Suspicious Activity Reports (SAR). | `database`, `analytics`, `compliance`, `notification` |
+| **Loan Underwriting** | Fintech | Evaluates creditworthiness, checks bureau APIs, and manages multi-step approval workflows. | `database`, `rest_api`, `compliance`, `workflow`, `hitl`, `email` |
+| **Portfolio Advisor** | Fintech | Analyzes market trends and rebalances asset allocations based on risk profiles. | `database`, `analytics`, `rest_api`, `search`, `email` |
+| **Regulatory Reporting** | Fintech | Automates the generation and filing of KYC/AML and financial compliance reports. | `database`, `compliance`, `document_processor`, `sftp` |
+| **EPC Subcontractor Vetting** | Construction | Vets third-party EPC subcontractors: COI coverage, surety bonding, OFAC sanctions, and NTP issuance. | `insurance`, `bonding`, `sanctions`, `notice_to_proceed` |
 
-### Case Study: Fraud Detection Agent
-- **Logic**: Analyzes transaction history via `database`, calculates risk via `analytics`. If risk > 70, triggers `compliance` filing and `notification`.
-- **Industrial Hardening**: Ensures SAR filings are forensic-grade and notification pathways are authenticated.
+### Case Study: EPC Subcontractor Vetting Agent
+- **Logic**: Verifies COI insurance certificates via `insurance`, checks surety bonding limits via `bonding`, and checks OFAC sanctions via `sanctions`. If all pass and statutory version matches v5, issues Notice to Proceed via `notice_to_proceed`.
+- **Industrial Hardening**: Out-of-order execution or v4 legacy statute citations trigger temporal drift violations and halt NTP issuance.
 
 ---
 

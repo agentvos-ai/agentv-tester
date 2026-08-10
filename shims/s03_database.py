@@ -1,10 +1,10 @@
 import logging
+from typing import Any
 
-
-from typing import List, Dict, Any, Tuple
 from sqlalchemy import create_engine, text
-from core.registry import register_shim
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -57,19 +57,19 @@ class DatabaseShim(BaseShim):
             )
             conn.commit()
 
-    def query(self, sql: str) -> List[Dict[str, Any]]:
+    def query(self, sql: str) -> list[dict[str, Any]]:
         """Executes a SELECT query."""
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(text(sql))
                 return [dict(row._mapping) for row in result]
         except Exception as e:
-            raise ShimError(f"Database query failed: {str(e)}")
+            raise ShimError(f"Database query failed: {e!s}")
 
-    def insert(self, table: str, data: Dict[str, Any]) -> str:
+    def insert(self, table: str, data: dict[str, Any]) -> str:
         """Inserts a new record into a table."""
         columns = ", ".join(data.keys())
-        values = ", ".join([f":{k}" for k in data.keys()])
+        values = ", ".join([f":{k}" for k in data])
         sql = f"INSERT INTO {table} ({columns}) VALUES ({values})"
         try:
             with self.engine.connect() as conn:
@@ -77,11 +77,11 @@ class DatabaseShim(BaseShim):
                 conn.commit()
             return f"Record inserted into '{table}'."
         except Exception as e:
-            raise ShimError(f"Database insert failed: {str(e)}")
+            raise ShimError(f"Database insert failed: {e!s}")
 
-    def update(self, table: str, data: Dict[str, Any], condition: str) -> str:
+    def update(self, table: str, data: dict[str, Any], condition: str) -> str:
         """Updates records in a table."""
-        set_clause = ", ".join([f"{k} = :{k}" for k in data.keys()])
+        set_clause = ", ".join([f"{k} = :{k}" for k in data])
         sql = f"UPDATE {table} SET {set_clause} WHERE {condition}"
         try:
             with self.engine.connect() as conn:
@@ -89,7 +89,7 @@ class DatabaseShim(BaseShim):
                 conn.commit()
             return f"Table '{table}' updated."
         except Exception as e:
-            raise ShimError(f"Database update failed: {str(e)}")
+            raise ShimError(f"Database update failed: {e!s}")
 
     def delete(self, table: str, condition: str) -> str:
         """Deletes records from a table."""
@@ -100,9 +100,9 @@ class DatabaseShim(BaseShim):
                 conn.commit()
             return f"Records deleted from '{table}'."
         except Exception as e:
-            raise ShimError(f"Database delete failed: {str(e)}")
+            raise ShimError(f"Database delete failed: {e!s}")
 
-    def schema_describe(self) -> Dict[str, Any]:
+    def schema_describe(self) -> dict[str, Any]:
         """Describes the database schema dynamically using SQLite introspection."""
         try:
             schema = {}
@@ -121,9 +121,9 @@ class DatabaseShim(BaseShim):
                     schema[table_name] = [f"{col[1]} ({col[2]})" for col in columns]
             return schema
         except Exception as e:
-            raise ShimError(f"Failed to describe database schema: {str(e)}")
+            raise ShimError(f"Failed to describe database schema: {e!s}")
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "db_query",

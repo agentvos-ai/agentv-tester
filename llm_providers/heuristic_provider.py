@@ -1,5 +1,7 @@
 import re
-from typing import List, Dict, Any, Generator
+from collections.abc import Generator
+from typing import Any
+
 from core.base_llm import BaseLLMProvider
 from core.registry import register_llm
 
@@ -31,10 +33,10 @@ class HeuristicProvider(BaseLLMProvider):
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         last_msg = messages[-1]["content"] if messages else ""
 
         content = "Local fallback: The primary LLM is unavailable. Based on simple heuristics, I recommend checking the manual documentation for this specific case."
@@ -53,10 +55,10 @@ class HeuristicProvider(BaseLLMProvider):
 
     def stream(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any], None, None]:
         yield self.chat(messages, tools, **kwargs)
 
     @property

@@ -1,5 +1,7 @@
-import pytest
 from types import SimpleNamespace
+
+import pytest
+
 from core.errors import AgentExecutionError
 
 
@@ -20,9 +22,9 @@ def mock_config():
 
 
 def test_base_agent_schema_enforcement(mock_config):
-    from verticals.fintech.agents.fraud_detection_agent import FraudDetectionAgent
     from frameworks.langchain_adapter import LangChainAdapter
     from llm_providers.mock_provider import MockLLMProvider
+    from verticals.fintech.agents.fraud_detection_agent import FraudDetectionAgent
 
     llm = MockLLMProvider(mock_config.llms["mock"])
     framework = LangChainAdapter(llm, [], mock_config)

@@ -1,12 +1,13 @@
 import asyncio
 import logging
+import socket
 import subprocess
 import time
-import socket
-from typing import List, Dict, Any
+from typing import Any
+
 from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
+from mcp.client.stdio import stdio_client
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,9 @@ class MCPClient:
     def __init__(
         self,
         command: str,
-        args: List[str],
+        args: list[str],
         transport: str = "stdio",
-        env: Dict[str, str] = None,
+        env: dict[str, str] | None = None,
     ):
         self.command = command
         self.args = args
@@ -63,7 +64,7 @@ class MCPClient:
                     logger.info(f"SSE server is up on port {self.sse_port}")
                     time.sleep(0.5)
                     return
-                except (ConnectionRefusedError, socket.timeout):
+                except (TimeoutError, ConnectionRefusedError):
                     time.sleep(0.2)
         logger.warning(
             f"SSE server on port {self.sse_port} did not start responding in time."
@@ -80,7 +81,7 @@ class MCPClient:
                 self.server_process.kill()
             self.server_process = None
 
-    async def _async_list_tools(self) -> List[Dict[str, Any]]:
+    async def _async_list_tools(self) -> list[dict[str, Any]]:
         if self.transport == "sse":
             url = f"http://localhost:{self.sse_port}/sse"
             async with sse_client(url) as (read, write):
@@ -109,7 +110,7 @@ class MCPClient:
                         for tool in response.tools
                     ]
 
-    async def _async_call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+    async def _async_call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         if self.transport == "sse":
             url = f"http://localhost:{self.sse_port}/sse"
             async with sse_client(url) as (read, write):
@@ -132,7 +133,7 @@ class MCPClient:
             asyncio.set_event_loop(loop)
             return loop
 
-    def list_tools(self) -> List[Dict[str, Any]]:
+    def list_tools(self) -> list[dict[str, Any]]:
         """Synchronous wrapper to list tools from the MCP server."""
         try:
             loop = self._get_loop()
@@ -146,7 +147,7 @@ class MCPClient:
             logger.error(f"Failed to list tools from MCP server: {e}", exc_info=True)
             raise
 
-    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         """Synchronous wrapper to execute a tool on the MCP server."""
         try:
             loop = self._get_loop()

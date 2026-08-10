@@ -1,5 +1,7 @@
-from typing import List, Type, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -8,14 +10,14 @@ class PortfolioAdvisorInput(BaseModel):
     client_id: str = Field(..., description="Unique identifier for the client.")
     risk_tolerance: str = Field(..., pattern="^(CONSERVATIVE|MODERATE|AGGRESSIVE)$")
     investment_horizon_years: int = Field(..., ge=1)
-    current_holdings: List[Dict[str, Any]] = Field(default_factory=list)
+    current_holdings: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PortfolioAdvisorOutput(BaseModel):
-    recommended_allocation: Dict[str, float] = Field(
+    recommended_allocation: dict[str, float] = Field(
         ..., description="Target asset allocation percentages."
     )
-    rebalance_actions: List[str] = Field(
+    rebalance_actions: list[str] = Field(
         ..., description="List of specific trades to execute."
     )
     justification: str
@@ -32,7 +34,7 @@ You use market data APIs, semantic search in the knowledge base, and vector sear
 Any rebalancing above $50k requires human approval via HITL."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return [
             "rest_api",
             "vector_db",
@@ -43,9 +45,9 @@ Any rebalancing above $50k requires human approval via HITL."""
         ]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return PortfolioAdvisorInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return PortfolioAdvisorOutput

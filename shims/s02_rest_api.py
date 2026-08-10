@@ -1,6 +1,8 @@
 import logging
 import re
-from typing import List, Dict, Any, Tuple, Optional, Callable
+from collections.abc import Callable
+from typing import Any
+
 from core.registry import register_shim
 from shims import BaseShim
 
@@ -16,7 +18,7 @@ class RestApiShim(BaseShim):
 
     def __init__(self, seed: int = 42):
         super().__init__(seed)
-        self._routes: List[Tuple[str, str, Callable]] = []
+        self._routes: list[tuple[str, str, Callable]] = []
 
     @property
     def name(self) -> str:
@@ -79,8 +81,8 @@ class RestApiShim(BaseShim):
         ]
 
     def _handle_post_transaction(
-        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, params: dict[str, str], body: dict[str, Any] | None
+    ) -> dict[str, Any]:
         if not body:
             return {"status": 400, "body": {"error": "Missing payload"}}
         tx_id = f"tx_{len(self._state['data']['transactions']) + 100}"
@@ -89,8 +91,8 @@ class RestApiShim(BaseShim):
         return {"status": 201, "body": tx}
 
     def _handle_get_transaction(
-        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, params: dict[str, str], body: dict[str, Any] | None
+    ) -> dict[str, Any]:
         tx_id = params.get("tx_id")
         for tx in self._state["data"]["transactions"]:
             if tx["id"] == tx_id:
@@ -98,8 +100,8 @@ class RestApiShim(BaseShim):
         return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
 
     def _handle_put_transaction(
-        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, params: dict[str, str], body: dict[str, Any] | None
+    ) -> dict[str, Any]:
         if not body:
             return {"status": 400, "body": {"error": "Missing payload"}}
         tx_id = params.get("tx_id")
@@ -111,8 +113,8 @@ class RestApiShim(BaseShim):
         return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
 
     def _handle_patch_transaction(
-        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, params: dict[str, str], body: dict[str, Any] | None
+    ) -> dict[str, Any]:
         if not body:
             return {"status": 400, "body": {"error": "Missing payload"}}
         tx_id = params.get("tx_id")
@@ -123,8 +125,8 @@ class RestApiShim(BaseShim):
         return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
 
     def _handle_delete_transaction(
-        self, params: Dict[str, str], body: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, params: dict[str, str], body: dict[str, Any] | None
+    ) -> dict[str, Any]:
         tx_id = params.get("tx_id")
         initial_len = len(self._state["data"]["transactions"])
         self._state["data"]["transactions"] = [
@@ -135,8 +137,8 @@ class RestApiShim(BaseShim):
         return {"status": 404, "body": {"error": f"Transaction {tx_id} not found"}}
 
     def _request(
-        self, method: str, url: str, payload: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, method: str, url: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Industrial internal router using regex matching."""
         logger.info("REST: Calling %s %s", method, url)
 
@@ -151,27 +153,27 @@ class RestApiShim(BaseShim):
             "error": f"Endpoint '{url}' with method '{method}' not found.",
         }
 
-    def get(self, url: str) -> Dict[str, Any]:
+    def get(self, url: str) -> dict[str, Any]:
         """Perform a GET request."""
         return self._request("GET", url)
 
-    def post(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def post(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Perform a POST request."""
         return self._request("POST", url, payload)
 
-    def put(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def put(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Perform a PUT request."""
         return self._request("PUT", url, payload)
 
-    def delete(self, url: str) -> Dict[str, Any]:
+    def delete(self, url: str) -> dict[str, Any]:
         """Perform a DELETE request."""
         return self._request("DELETE", url)
 
-    def patch(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def patch(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Perform a PATCH request."""
         return self._request("PATCH", url, payload)
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("api_get", self.get, "Perform a GET request to a REST API."),
             ("api_post", self.post, "Perform a POST request with a payload."),

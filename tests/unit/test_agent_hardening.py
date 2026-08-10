@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+
 from core.base_agent import BaseAgent
 from core.errors import ShimError
 

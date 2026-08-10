@@ -1,8 +1,10 @@
-from typing import List, Dict, Any
+from typing import Any
+
 import autogen  # type: ignore
+
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
-from core.registry import register_framework
 from core.errors import AgentExecutionError
+from core.registry import register_framework
 
 
 class SuiteModelClient:
@@ -15,7 +17,7 @@ class SuiteModelClient:
         self.llm = llm_provider
         self.model = config.model
 
-    def create(self, params: Dict[str, Any]) -> Any:
+    def create(self, params: dict[str, Any]) -> Any:
         # Convert AutoGen params to our chat format
         messages = params.get("messages", [])
         tools = params.get("tools", None)
@@ -49,7 +51,7 @@ class SuiteModelClient:
             model=self.model,
         )
 
-    def message_retrieval(self, response: Any) -> List[Any]:
+    def message_retrieval(self, response: Any) -> list[Any]:
         return [choice.message for choice in response.choices]
 
     def cost(self, response: Any) -> float:
@@ -59,8 +61,8 @@ class SuiteModelClient:
 
     @staticmethod
     def get_common_config_list(
-        config_list: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+        config_list: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         return config_list
 
 
@@ -116,7 +118,7 @@ class AG2Runnable(RunnableAgent):
         self.assistant = assistant
         self.user_proxy = user_proxy
 
-    def run(self, task: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    def run(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
             full_task = task
             if context:
@@ -130,7 +132,7 @@ class AG2Runnable(RunnableAgent):
             chat_history = self.assistant.chat_messages.get(self.user_proxy, [])
             tool_calls = []
             for msg in chat_history:
-                if "tool_calls" in msg and msg["tool_calls"]:
+                if msg.get("tool_calls"):
                     for tc in msg["tool_calls"]:
                         # Convert back to our suite format
                         tool_calls.append(
@@ -143,4 +145,4 @@ class AG2Runnable(RunnableAgent):
             last_msg = self.assistant.last_message()
             return {"output": last_msg.get("content", ""), "tool_calls": tool_calls}
         except Exception as e:
-            raise AgentExecutionError(f"AG2 execution failed: {str(e)}") from e
+            raise AgentExecutionError(f"AG2 execution failed: {e!s}") from e

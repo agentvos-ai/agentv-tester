@@ -1,7 +1,8 @@
+import json
 import logging
 import os
-import json
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from core.registry import register_shim
 from shims import BaseShim
 
@@ -57,7 +58,7 @@ class SearchShim(BaseShim):
         """Deterministic reset of the search state."""
         self.setup()
 
-    def web_search(self, query: str) -> List[Dict[str, str]]:
+    def web_search(self, query: str) -> list[dict[str, str]]:
         """Simulates an external web search using canned forensic results."""
         results = []
         if os.path.exists(self.canned_results_path):
@@ -71,7 +72,7 @@ class SearchShim(BaseShim):
                         results.append(res)
         return results
 
-    def internal_search(self, query: str) -> List[Dict[str, str]]:
+    def internal_search(self, query: str) -> list[dict[str, str]]:
         """Searches the local knowledge base (crawls disk)."""
         results = []
         if not os.path.exists(self.kb_root):
@@ -102,15 +103,15 @@ class SearchShim(BaseShim):
                 continue
         return results
 
-    def enterprise_search(self, query: str) -> List[Dict[str, str]]:
+    def enterprise_search(self, query: str) -> list[dict[str, str]]:
         """Alias for internal_search to maintain compatibility."""
         return self.internal_search(query)
 
-    def news_search(self, query: str) -> List[Dict[str, str]]:
+    def news_search(self, query: str) -> list[dict[str, str]]:
         """Alias for web_search to maintain compatibility."""
         return self.web_search(query)
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("search_web", self.web_search, "Search the web for external information."),
             (

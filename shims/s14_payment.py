@@ -1,9 +1,10 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -119,7 +120,7 @@ class PaymentShim(BaseShim):
         except Exception as e:
             if isinstance(e, ShimError):
                 raise
-            raise ShimError(f"Failed to process payment: {str(e)}")
+            raise ShimError(f"Failed to process payment: {e!s}")
         finally:
             conn.close()
 
@@ -142,7 +143,7 @@ class PaymentShim(BaseShim):
         finally:
             conn.close()
 
-    def list_transactions(self, account_id: str) -> List[Dict[str, Any]]:
+    def list_transactions(self, account_id: str) -> list[dict[str, Any]]:
         """Lists all transactions involving a specific account."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -164,7 +165,7 @@ class PaymentShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "pay_process",

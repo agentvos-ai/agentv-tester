@@ -1,18 +1,18 @@
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Ensure project root is in sys.path
 root_dir = Path(__file__).parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-from core.config_loader import SuiteConfig, LLMConfig, VerticalConfig  # noqa: E402
-from core.registry import get_llm_provider  # noqa: E402
+from core.config_loader import LLMConfig, SuiteConfig, VerticalConfig
+from core.registry import get_llm_provider
 
 # Ensure all plugins are registered
-
-from shims.registry import ShimRegistry  # noqa: E402
+from shims.registry import ShimRegistry
 
 
 @pytest.fixture

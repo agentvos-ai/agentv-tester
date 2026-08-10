@@ -1,9 +1,10 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -74,11 +75,11 @@ class CalendarShim(BaseShim):
             conn.commit()
             return f"Event '{title}' scheduled from {start} to {end}."
         except Exception as e:
-            raise ShimError(f"Failed to create event: {str(e)}")
+            raise ShimError(f"Failed to create event: {e!s}")
         finally:
             conn.close()
 
-    def list_events(self, date: str) -> List[Dict[str, Any]]:
+    def list_events(self, date: str) -> list[dict[str, Any]]:
         """Lists all events for a specific date (YYYY-MM-DD)."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -126,7 +127,7 @@ class CalendarShim(BaseShim):
         """Simulates finding a free slot."""
         return f"{date}T14:00:00"
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("cal_create", self.create_event, "Schedule a new calendar event."),
             ("cal_list", self.list_events, "List events for a specific date."),

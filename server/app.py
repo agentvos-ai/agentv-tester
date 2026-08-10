@@ -1,4 +1,4 @@
-# ruff: noqa: E402, F401
+# ruff: noqa: F401
 import os
 import sys
 import warnings
@@ -10,28 +10,29 @@ root_dir = Path(__file__).parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
 
-from core.config_loader import ConfigLoader
 from typing import Any
-from flask import Flask, request, jsonify, render_template
-from dotenv import load_dotenv
 
-from core.registry import (
-    get_llm_provider,
-    get_framework_adapter,
-    get_agent_class,
-    list_llms,
-    list_frameworks,
-)
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request
+
 from core.base_llm import FallbackLLMProvider
-from shims.registry import ShimRegistry
+from core.config_loader import ConfigLoader
+from core.registry import (
+    get_agent_class,
+    get_framework_adapter,
+    get_llm_provider,
+    list_frameworks,
+    list_llms,
+)
 from server.middleware import setup_middleware
+from shims.registry import ShimRegistry
 
 # Load environment variables from .env if present
 load_dotenv()
 
 # Environment Audit & Purge: Ensure YAML priority by clearing persistent overrides
 # NOTE: This only purges on first import of the module.
-active_envs = {k: os.environ[k] for k in os.environ.keys() if k.startswith("ACTIVE_")}
+active_envs = {k: os.environ[k] for k in os.environ if k.startswith("ACTIVE_")}
 if active_envs:
     # Persist the environment overrides into suite.yaml on startup
     config_path = Path(__file__).parent.parent / "config" / "suite.yaml"
@@ -59,7 +60,7 @@ if active_envs:
         sys.stderr.write(f"Failed to persist env overrides to suite.yaml: {e}\n")
 
     # Now purge them from os.environ so they do not override /update_config on reload
-    for k in active_envs.keys():
+    for k in active_envs:
         sys.stderr.write(f"PURGING ENV OVERRIDE: {k}={os.environ[k]}\n")
         del os.environ[k]
 
@@ -69,9 +70,10 @@ warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jsonschema")
 
 # Ensure all plugins are registered by importing their packages
-import llm_providers as _llm_providers
 import frameworks as _frameworks
+import llm_providers as _llm_providers
 import shims as _shims
+import verticals.construction.agents as _construction_agents
 
 # Vertical Agents: Trigger registration for all industrial domains
 import verticals.fintech.agents as _fintech_agents
@@ -116,7 +118,7 @@ def create_app() -> Flask:
 
             logger = logging.getLogger(__name__)
             logger.warning(
-                f"Failed to instantiate primary LLM {config.active_llm}: {str(e)}"
+                f"Failed to instantiate primary LLM {config.active_llm}: {e!s}"
             )
             if not active_llm_cfg.fallbacks:
                 raise
@@ -134,7 +136,7 @@ def create_app() -> Flask:
 
                     logger = logging.getLogger(__name__)
                     logger.warning(
-                        f"Failed to instantiate fallback LLM {f_name}: {str(e)}"
+                        f"Failed to instantiate fallback LLM {f_name}: {e!s}"
                     )
 
             if llm is None:

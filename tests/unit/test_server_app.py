@@ -1,6 +1,8 @@
-import pytest
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from server.app import app
 
 
@@ -140,17 +142,16 @@ def test_execute_task_llm_instantiation_failure(client):
     mock_config.active_llm = "gemini"
     mock_config.llms = {"gemini": MagicMock(fallbacks=[])}
 
-    with patch("server.app.get_config", return_value=mock_config):
-        with patch(
-            "server.app.get_llm_provider", side_effect=Exception("Instantiate fail")
-        ):
-            # Middleware should catch this as 500
-            rv = client.post(
-                "/execute_task",
-                data=json.dumps(payload),
-                content_type="application/json",
-            )
-            assert rv.status_code == 500
+    with patch("server.app.get_config", return_value=mock_config), patch(
+        "server.app.get_llm_provider", side_effect=Exception("Instantiate fail")
+    ):
+        # Middleware should catch this as 500
+        rv = client.post(
+            "/execute_task",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        assert rv.status_code == 500
 
     # Case 2: Primary fails, fallback succeeds
     mock_config.llms = {
@@ -225,6 +226,7 @@ def test_update_config_no_valid_keys(client):
 def test_path_injection_logic():
     # This manually executes the path injection lines to ensure coverage
     import sys
+
     from server.app import root_dir
 
     test_path = str(root_dir)

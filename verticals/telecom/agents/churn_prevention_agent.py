@@ -1,5 +1,7 @@
-from typing import List, Type, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -7,7 +9,7 @@ from core.registry import register_agent
 class ChurnPreventionInput(BaseModel):
     customer_id: str = Field(..., description="Unique ID of the customer.")
     tenure_months: int = Field(..., ge=0)
-    usage_data: Dict[str, Any] = Field(default_factory=dict)
+    usage_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChurnPreventionOutput(BaseModel):
@@ -27,13 +29,13 @@ Analyze user engagement in 'analytics' and recent 'support_desk' tickets.
 Search for competitive 'search' data. Send retention 'email' or 'social_media' DMs."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["analytics", "support_desk", "search", "email", "social_media"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return ChurnPreventionInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return ChurnPreventionOutput

@@ -1,9 +1,12 @@
 import os
-from typing import List, Dict, Any, Generator
+from collections.abc import Generator
+from typing import Any
+
 from openai import OpenAI
+
 from core.base_llm import BaseLLMProvider
-from core.registry import register_llm
 from core.errors import LLMProviderError
+from core.registry import register_llm
 
 
 @register_llm("openai")
@@ -31,10 +34,10 @@ class OpenAIProvider(BaseLLMProvider):
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Synchronous chat completion returning OpenAI-compatible dictionary.
         """
@@ -49,14 +52,14 @@ class OpenAIProvider(BaseLLMProvider):
             # Convert to dict and ensure it's JSON serializable
             return response.model_dump()
         except Exception as e:
-            raise LLMProviderError(f"OpenAI chat failed: {str(e)}") from e
+            raise LLMProviderError(f"OpenAI chat failed: {e!s}") from e
 
     def stream(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any], None, None]:
         """Streaming chat completion."""
         try:
             stream = self.client.chat.completions.create(
@@ -69,7 +72,7 @@ class OpenAIProvider(BaseLLMProvider):
             for chunk in stream:
                 yield chunk.model_dump()
         except Exception as e:
-            raise LLMProviderError(f"OpenAI stream failed: {str(e)}") from e
+            raise LLMProviderError(f"OpenAI stream failed: {e!s}") from e
 
     @property
     def supports_tool_calling(self) -> bool:

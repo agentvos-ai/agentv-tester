@@ -1,59 +1,51 @@
-# ruff: noqa: E402
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class BaseShim(ABC):
     """
-    Base abstraction for all 20 enterprise shims.
+    Base abstraction for enterprise shims.
     Enforces deterministic state management and tool specification.
     """
 
     def __init__(self, seed: int = 42):
         self.seed = seed
-        self._state: Dict[str, Any] = {}
+        self._state: dict[str, Any] = {}
         self.reset()
 
     @property
     @abstractmethod
     def name(self) -> str:
         """Unique identifier for the shim."""
-        pass
 
     @property
     @abstractmethod
     def description(self) -> str:
         """Description of the service being simulated."""
-        pass
 
     @abstractmethod
     def reset(self) -> None:
         """Resets shim state to a deterministic baseline."""
-        pass
 
     def setup(self) -> None:
         """Performs initial setup, such as creating temporary directories or connecting to local backends."""
-        pass
 
     def shutdown(self) -> None:
         """Gracefully shuts down the shim, closing any open resources and cleaning up."""
-        pass
 
     @abstractmethod
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         """
         Returns a list of tools exposed by this shim.
         Format: [(name, function, description), ...]
         """
-        pass
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         """Returns the current internal state of the shim."""
         return dict(self._state)
 
 
 # Registration Imports (Must be at bottom to avoid circular dependency)
-# noqa: E402
 from . import s01_git as s01_git
 from . import s02_rest_api as s02_rest_api
 from . import s03_database as s03_database
@@ -74,3 +66,7 @@ from . import s17_analytics as s17_analytics
 from . import s18_workflow as s18_workflow
 from . import s19_compliance as s19_compliance
 from . import s20_hitl as s20_hitl
+from . import s21_insurance as s21_insurance
+from . import s22_bonding as s22_bonding
+from . import s23_sanctions as s23_sanctions
+from . import s24_notice_to_proceed as s24_notice_to_proceed

@@ -1,6 +1,7 @@
-import logging
 import json
-from typing import List, Dict, Any
+import logging
+from typing import Any
+
 from core.base_llm import BaseLLMProvider
 from core.registry import register_llm
 
@@ -20,10 +21,10 @@ class MockLLMProvider(BaseLLMProvider):
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         # Collect all user messages to determine active scenario
         user_contents = []
         for m in messages:

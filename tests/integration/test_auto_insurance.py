@@ -2,19 +2,19 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
-import unittest
-import os
 import json
-from server.app import create_app
+import os
+import unittest
 
 # Import MCP tools directly to verify unit-level correctness & hit 100% coverage
 from mcp_servers.auto_insurance_mcp.server import (
-    get_auto_claim,
-    verify_accident_report,
     check_policy_coverage,
     detect_suspicious_claim,
+    get_auto_claim,
     submit_auto_adjudication,
+    verify_accident_report,
 )
+from server.app import create_app
 
 
 class TestAutoInsuranceIntegration(unittest.TestCase):

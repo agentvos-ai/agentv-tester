@@ -1,6 +1,7 @@
-import sys
 import logging
-from typing import List, Tuple, Any, Dict
+import sys
+from typing import Any
+
 from core.base_agent import BaseAgent
 from core.mcp_client import MCPClient
 
@@ -18,16 +19,16 @@ class BaseMCPAgent(BaseAgent):
     )
     mcp_transport: str = "stdio"  # "stdio" or "sse"
 
-    def __init__(self, config: Any, framework: Any, shims: Dict[str, Any]):
+    def __init__(self, config: Any, framework: Any, shims: dict[str, Any]):
         super().__init__(config, framework, shims)
         self._mcp_client = None
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         # MCP agents bypass legacy shims since all tools are served via MCP
         return []
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         """
         Connects to the MCP server, discovers tools, and wraps them as functions
         compatible with the framework adapters.
@@ -72,7 +73,7 @@ class BaseMCPAgent(BaseAgent):
                 return str(result)
             except Exception as e:
                 logger.error(f"Error during MCP tool call '{tool_name}': {e}")
-                return f"TOOL_ERROR: {str(e)}"
+                return f"TOOL_ERROR: {e!s}"
 
         mcp_tool_wrapper.__name__ = tool_name
         return mcp_tool_wrapper

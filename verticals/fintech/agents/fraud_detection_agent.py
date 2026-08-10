@@ -1,5 +1,6 @@
-from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -36,13 +37,13 @@ Your goal is to analyze transactions for potential fraud.
 4. Notify the security team via 'notification'."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["database", "analytics", "compliance", "notification"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return FraudDetectionInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return FraudDetectionOutput

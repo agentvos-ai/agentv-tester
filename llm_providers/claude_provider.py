@@ -1,9 +1,12 @@
 import os
+from collections.abc import Generator
+from typing import Any
+
 import anthropic
-from typing import List, Dict, Any, Generator
+
 from core.base_llm import BaseLLMProvider
-from core.registry import register_llm
 from core.errors import LLMProviderError
+from core.registry import register_llm
 
 
 @register_llm("claude")
@@ -25,10 +28,10 @@ class ClaudeProvider(BaseLLMProvider):
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Synchronous chat completion with format normalization."""
         try:
             # Extract system message
@@ -67,14 +70,14 @@ class ClaudeProvider(BaseLLMProvider):
                 },
             }
         except Exception as e:
-            raise LLMProviderError(f"Claude chat failed: {str(e)}") from e
+            raise LLMProviderError(f"Claude chat failed: {e!s}") from e
 
     def stream(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any], None, None]:
         """Full industrial streaming implementation for Claude."""
         try:
             system_msg = next(
@@ -113,13 +116,13 @@ class ClaudeProvider(BaseLLMProvider):
                             ]
                         }
         except Exception as e:
-            raise LLMProviderError(f"Claude stream failed: {str(e)}") from e
+            raise LLMProviderError(f"Claude stream failed: {e!s}") from e
 
     @property
     def supports_tool_calling(self) -> bool:
         return True
 
-    def _parse_tool_calls(self, response: Any) -> List[Dict[str, Any]]:
+    def _parse_tool_calls(self, response: Any) -> list[dict[str, Any]]:
         tool_calls = []
         for block in response.content:
             if block.type == "tool_use":

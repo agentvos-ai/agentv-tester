@@ -1,5 +1,6 @@
-from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -11,7 +12,7 @@ class RegulatoryReportingInput(BaseModel):
     reporting_period: str = Field(
         ..., description="The time period covered by the report."
     )
-    data_sources: List[str] = Field(default_factory=lambda: ["database", "analytics"])
+    data_sources: list[str] = Field(default_factory=lambda: ["database", "analytics"])
 
 
 class RegulatoryReportingOutput(BaseModel):
@@ -34,13 +35,13 @@ class RegulatoryReportingAgent(BaseAgent):
 You extract data from databases, assemble reports in the filesystem, version them using Git, and file them via compliance engines."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["database", "filesystem", "compliance", "email", "analytics", "git"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return RegulatoryReportingInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return RegulatoryReportingOutput

@@ -1,9 +1,10 @@
 import logging
 import os
 import shutil
-from typing import List, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ Category: Regulatory""",
             with open(os.path.join(self.workspace_root, name), "w") as f:
                 f.write(content)
 
-    def search(self, query: str) -> List[str]:
+    def search(self, query: str) -> list[str]:
         """Search the KB for relevant documents using keyword matching."""
         results = []
         if not os.path.exists(self.workspace_root):
@@ -77,7 +78,7 @@ Category: Regulatory""",
                     ):
                         results.append(name.replace(".md", ""))
             except Exception as e:
-                logger.error(f"Failed to read KB doc {name}: {str(e)}")
+                logger.error(f"Failed to read KB doc {name}: {e!s}")
 
         return results
 
@@ -95,9 +96,9 @@ Category: Regulatory""",
             with open(full_path, "r") as f:
                 return f.read()
         except Exception as e:
-            raise ShimError(f"Failed to fetch document '{doc_id}': {str(e)}")
+            raise ShimError(f"Failed to fetch document '{doc_id}': {e!s}")
 
-    def list_topics(self) -> List[str]:
+    def list_topics(self) -> list[str]:
         """Lists all topics available in the KB by parsing 'Category:' markers."""
         topics = set()
         if not os.path.exists(self.workspace_root):
@@ -114,7 +115,7 @@ Category: Regulatory""",
                 continue
         return list(topics)
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "kb_search",

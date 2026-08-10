@@ -1,11 +1,12 @@
+import json
 import logging
 import os
-import json
 import random
 import time
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -58,15 +59,15 @@ class IotShim(BaseShim):
         with open(self.db_path, "w") as f:
             json.dump(default_devices, f, indent=2)
 
-    def _load_registry(self) -> Dict[str, Any]:
+    def _load_registry(self) -> dict[str, Any]:
         with open(self.db_path, "r") as f:
             return json.load(f)
 
-    def _save_registry(self, registry: Dict[str, Any]) -> None:
+    def _save_registry(self, registry: dict[str, Any]) -> None:
         with open(self.db_path, "w") as f:
             json.dump(registry, f, indent=2)
 
-    def read_sensor(self, device_id: str) -> Dict[str, Any]:
+    def read_sensor(self, device_id: str) -> dict[str, Any]:
         """Reads real-time sensor data with time-series trend simulation."""
         registry = self._load_registry()
         if device_id not in registry:
@@ -113,12 +114,12 @@ class IotShim(BaseShim):
         logger.info(f"IoT: Command '{command}' executed on {device_id}.")
         return f"Command '{command}' successfully acknowledged by {device_id}."
 
-    def list_devices(self) -> List[Dict[str, Any]]:
+    def list_devices(self) -> list[dict[str, Any]]:
         """Lists all registered industrial devices."""
         registry = self._load_registry()
         return [{"id": k, **v} for k, v in registry.items()]
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "iot_read",

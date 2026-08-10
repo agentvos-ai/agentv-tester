@@ -1,8 +1,10 @@
-import time
 import logging
+import time
 from typing import Any
-from flask import request, Response, jsonify
+
+from flask import Response, jsonify, request
 from werkzeug.exceptions import HTTPException
+
 from core.errors import AgenticSuiteError
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ def setup_middleware(app: Any) -> None:
             response.status_code = e.code
             return response
 
-        logger.error("Unhandled Exception: %s", str(e), exc_info=True)
+        logger.error("Unhandled Exception: %s", str(e))
         response = jsonify({"status": "error", "message": "Internal Server Error"})
         response.status_code = 500
         return response

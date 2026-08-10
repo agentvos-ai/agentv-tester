@@ -1,8 +1,10 @@
-import pytest
 import os
 import stat
-from shims.registry import ShimRegistry
+
+import pytest
+
 from core.errors import ShimError
+from shims.registry import ShimRegistry
 
 
 @pytest.fixture
@@ -56,7 +58,7 @@ def test_all_shims_methods_expanded(booster_registry):
     os.chmod(ro_file, stat.S_IREAD)  # Make file read-only
 
     # Call name/description on all shims
-    for name, shim in shims.items():
+    for shim in shims.values():
         _ = shim.name
         _ = shim.description
 

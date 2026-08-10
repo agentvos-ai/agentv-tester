@@ -1,5 +1,6 @@
-from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -32,13 +33,13 @@ You use databases, credit APIs, and compliance engines.
 You must follow the multi-step approval workflow and notify applicants via email."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["database", "rest_api", "compliance", "workflow", "hitl", "email"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return LoanUnderwritingInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return LoanUnderwritingOutput

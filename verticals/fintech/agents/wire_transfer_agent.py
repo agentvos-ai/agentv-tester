@@ -1,5 +1,6 @@
-from typing import Type
+
 from pydantic import BaseModel, Field
+
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
 
@@ -42,9 +43,9 @@ Perform all calls systematically and explain the outcomes of each step.
 """
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return WireTransferInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return WireTransferOutput

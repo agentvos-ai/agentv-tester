@@ -1,10 +1,12 @@
-from typing import List, Dict, Any
+from typing import Any
+
 from langchain_classic.agents import AgentExecutor, create_structured_chat_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import StructuredTool
+
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
-from core.registry import register_framework
 from core.errors import AgentExecutionError
+from core.registry import register_framework
 from core.tool_utils import ToolNormalizer
 
 
@@ -41,7 +43,7 @@ class LangChainAdapter(BaseFrameworkAdapter):
 
         return LangChainRunnable(executor)
 
-    def _get_lc_tools(self) -> List[StructuredTool]:
+    def _get_lc_tools(self) -> list[StructuredTool]:
         return [
             StructuredTool.from_function(func=fn, name=name, description=desc)
             for name, fn, desc in self.shim_tools
@@ -49,13 +51,13 @@ class LangChainAdapter(BaseFrameworkAdapter):
 
     def _get_lc_llm(self):
         from langchain_core.language_models.chat_models import BaseChatModel
-        from langchain_core.outputs import ChatResult, ChatGeneration
         from langchain_core.messages import (
             AIMessage,
             HumanMessage,
             SystemMessage,
             ToolMessage,
         )
+        from langchain_core.outputs import ChatGeneration, ChatResult
 
         adapter_self = self
 
@@ -117,7 +119,7 @@ class LangChainRunnable(RunnableAgent):
     def __init__(self, executor: AgentExecutor):
         self.executor = executor
 
-    def run(self, task: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    def run(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
             full_task = task
             if context:
@@ -141,4 +143,4 @@ class LangChainRunnable(RunnableAgent):
                 "tool_calls": tool_calls,
             }
         except Exception as e:
-            raise AgentExecutionError(f"LangChain execution failed: {str(e)}") from e
+            raise AgentExecutionError(f"LangChain execution failed: {e!s}") from e

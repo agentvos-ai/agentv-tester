@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Generator
+from collections.abc import Generator
+from typing import Any
 
 
 class BaseLLMProvider(ABC):
@@ -11,28 +12,25 @@ class BaseLLMProvider(ABC):
     @abstractmethod
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Synchronous chat completion."""
-        pass
 
     @abstractmethod
     def stream(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any], None, None]:
         """Streaming chat completion."""
-        pass
 
     @property
     @abstractmethod
     def supports_tool_calling(self) -> bool:
         """Returns True if the provider supports native tool calling."""
-        pass
 
 
 class FallbackLLMProvider(BaseLLMProvider):
@@ -41,7 +39,7 @@ class FallbackLLMProvider(BaseLLMProvider):
     Useful for handling rate limits or outages with local fallbacks.
     """
 
-    def __init__(self, primary: BaseLLMProvider, fallbacks: List[BaseLLMProvider]):
+    def __init__(self, primary: BaseLLMProvider, fallbacks: list[BaseLLMProvider]):
         self.primary = primary
         self.fallbacks = fallbacks
         self.current_provider = primary
@@ -49,10 +47,10 @@ class FallbackLLMProvider(BaseLLMProvider):
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         providers = [self.primary] + self.fallbacks
         last_error = None
 
@@ -65,7 +63,7 @@ class FallbackLLMProvider(BaseLLMProvider):
 
                 logger = logging.getLogger(__name__)
                 logger.warning(
-                    f"LLM Provider {provider.__class__.__name__} failed: {str(e)}. "
+                    f"LLM Provider {provider.__class__.__name__} failed: {e!s}. "
                     "Trying next fallback..."
                 )
                 last_error = e
@@ -75,10 +73,10 @@ class FallbackLLMProvider(BaseLLMProvider):
 
     def stream(
         self,
-        messages: List[Dict[str, str]],
-        tools: List[Dict[str, Any]] | None = None,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         **kwargs,
-    ) -> Generator[Dict[str, Any], None, None]:
+    ) -> Generator[dict[str, Any], None, None]:
         providers = [self.primary] + self.fallbacks
         last_error = None
 
@@ -93,7 +91,7 @@ class FallbackLLMProvider(BaseLLMProvider):
 
                 logger = logging.getLogger(__name__)
                 logger.warning(
-                    f"LLM Provider {provider.__class__.__name__} failed in stream: {str(e)}. "
+                    f"LLM Provider {provider.__class__.__name__} failed in stream: {e!s}. "
                     "Trying next fallback..."
                 )
                 last_error = e

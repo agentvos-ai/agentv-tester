@@ -1,9 +1,10 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ class SupportDeskShim(BaseShim):
             conn.commit()
             return tid
         except Exception as e:
-            raise ShimError(f"Failed to create ticket: {str(e)}")
+            raise ShimError(f"Failed to create ticket: {e!s}")
         finally:
             conn.close()
 
@@ -117,7 +118,7 @@ class SupportDeskShim(BaseShim):
             conn.commit()
             return f"Comment added to ticket '{ticket_id}'."
         except Exception as e:
-            raise ShimError(f"Failed to update ticket: {str(e)}")
+            raise ShimError(f"Failed to update ticket: {e!s}")
         finally:
             conn.close()
 
@@ -142,11 +143,11 @@ class SupportDeskShim(BaseShim):
             conn.commit()
             return f"Ticket '{ticket_id}' resolved."
         except Exception as e:
-            raise ShimError(f"Failed to resolve ticket: {str(e)}")
+            raise ShimError(f"Failed to resolve ticket: {e!s}")
         finally:
             conn.close()
 
-    def list_open_tickets(self) -> List[Dict[str, Any]]:
+    def list_open_tickets(self) -> list[dict[str, Any]]:
         """Lists all tickets currently in 'OPEN' status."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -158,11 +159,11 @@ class SupportDeskShim(BaseShim):
                 for row in cursor.fetchall()
             ]
         except Exception as e:
-            raise ShimError(f"Failed to list tickets: {str(e)}")
+            raise ShimError(f"Failed to list tickets: {e!s}")
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("ticket_create", self.create_ticket, "Create a new support ticket."),
             ("ticket_update", self.update_ticket, "Add a comment to a ticket."),

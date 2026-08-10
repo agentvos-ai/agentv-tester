@@ -1,6 +1,7 @@
-import pytest
 import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 # Use a fixture to mock modules, ensuring they are restored after the test
@@ -107,8 +108,9 @@ def test_ag2_adapter_full(mock_llm, shim_tools, framework_config):
     # Reload adapter to pick up the mocks from sys.modules
     if "frameworks.ag2_adapter" in sys.modules:
         del sys.modules["frameworks.ag2_adapter"]
-    from frameworks.ag2_adapter import AG2Adapter, SuiteModelClient, AG2Runnable
     import autogen
+
+    from frameworks.ag2_adapter import AG2Adapter, AG2Runnable, SuiteModelClient
 
     with (
         patch.object(autogen, "AssistantAgent"),
@@ -152,8 +154,8 @@ def test_ag2_adapter_full(mock_llm, shim_tools, framework_config):
 def test_crewai_adapter(mock_llm, shim_tools, framework_config):
     if "frameworks.crewai_adapter" in sys.modules:
         del sys.modules["frameworks.crewai_adapter"]
-    from frameworks.crewai_adapter import CrewAIAdapter
     import frameworks.crewai_adapter as ca
+    from frameworks.crewai_adapter import CrewAIAdapter
 
     with patch.object(ca, "Agent"), patch.object(ca, "Task"), patch.object(ca, "Crew"):
         adapter = CrewAIAdapter(mock_llm, shim_tools, framework_config)
@@ -164,15 +166,15 @@ def test_crewai_adapter(mock_llm, shim_tools, framework_config):
 def test_langchain_adapter_full(mock_llm, shim_tools, framework_config):
     if "frameworks.langchain_adapter" in sys.modules:
         del sys.modules["frameworks.langchain_adapter"]
-    from frameworks.langchain_adapter import LangChainAdapter, LangChainRunnable
     from langchain_core.messages import (
-        HumanMessage,
         AIMessage,
+        HumanMessage,
         SystemMessage,
         ToolMessage,
     )
 
     import frameworks.langchain_adapter as la
+    from frameworks.langchain_adapter import LangChainAdapter, LangChainRunnable
 
     with (
         patch.object(la, "AgentExecutor") as mock_exec_cls,
@@ -255,9 +257,10 @@ def test_langgraph_adapter_full(mock_llm, shim_tools, framework_config):
     if "frameworks.langgraph_adapter" in sys.modules:
         del sys.modules["frameworks.langgraph_adapter"]
 
-    from frameworks.langgraph_adapter import LangGraphAdapter, LangGraphRunnable
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
     import frameworks.langgraph_adapter as lga
-    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+    from frameworks.langgraph_adapter import LangGraphAdapter, LangGraphRunnable
 
     with patch.object(lga, "StateGraph") as mock_graph_cls:
         mock_graph = mock_graph_cls.return_value
@@ -268,7 +271,7 @@ def test_langgraph_adapter_full(mock_llm, shim_tools, framework_config):
 
         # Test conversion logic
         # We patch the classes in the adapter's namespace to our mock classes
-        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+        from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
         with (
             patch("frameworks.langgraph_adapter.HumanMessage", HumanMessage),

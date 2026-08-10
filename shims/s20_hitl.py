@@ -1,8 +1,9 @@
 import logging
 import time
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class HitlShim(BaseShim):
     """
 
     def __init__(self, seed: int = 42):
-        self._requests: Dict[str, Dict[str, Any]] = {}
+        self._requests: dict[str, dict[str, Any]] = {}
         super().__init__(seed)
 
     @property
@@ -31,7 +32,7 @@ class HitlShim(BaseShim):
         """Deterministic reset of the HITL state."""
         self._requests = {}
 
-    def request_human_review(self, task_desc: str, context: Dict[str, Any]) -> str:
+    def request_human_review(self, task_desc: str, context: dict[str, Any]) -> str:
         """Escalates a task for manual human review with priority detection and SLA initiation."""
         rid = f"REQ-{len(self._requests) + 5001}"
         priority = "NORMAL"
@@ -52,7 +53,7 @@ class HitlShim(BaseShim):
         logger.info(f"HITL: Request {rid} created with priority {priority}.")
         return rid
 
-    def get_review_status(self, request_id: str) -> Dict[str, Any]:
+    def get_review_status(self, request_id: str) -> dict[str, Any]:
         """
         Checks status and implements SLA Auto-Escalation logic.
         If a request is checked more than 3 times without resolution, it moves to LEVEL_2.
@@ -92,7 +93,7 @@ class HitlShim(BaseShim):
         req["resolved_at"] = time.time()
         return f"Decision submitted for request '{request_id}': {req['status']}."
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "hitl_request",

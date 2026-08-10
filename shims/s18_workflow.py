@@ -1,10 +1,11 @@
+import json
 import logging
 import os
 import sqlite3
-import json
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class WorkflowShim(BaseShim):
             "LOAN-PROCESSING", {"customer": "C-001", "step": "INITIAL_REVIEW"}
         )
 
-    def start_workflow(self, workflow_type: str, initial_state: Dict[str, Any]) -> str:
+    def start_workflow(self, workflow_type: str, initial_state: dict[str, Any]) -> str:
         """Starts a new multi-step workflow."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -87,12 +88,12 @@ class WorkflowShim(BaseShim):
             conn.commit()
             return wid
         except Exception as e:
-            raise ShimError(f"Failed to start workflow: {str(e)}")
+            raise ShimError(f"Failed to start workflow: {e!s}")
         finally:
             conn.close()
 
     def update_workflow(
-        self, workflow_id: str, new_state: Dict[str, Any], transition_desc: str
+        self, workflow_id: str, new_state: dict[str, Any], transition_desc: str
     ) -> str:
         """Updates the state of an existing workflow."""
         conn = sqlite3.connect(self.db_path)
@@ -119,7 +120,7 @@ class WorkflowShim(BaseShim):
         except Exception as e:
             if isinstance(e, ShimError):
                 raise
-            raise ShimError(f"Failed to update workflow: {str(e)}")
+            raise ShimError(f"Failed to update workflow: {e!s}")
         finally:
             conn.close()
 
@@ -138,7 +139,7 @@ class WorkflowShim(BaseShim):
             workflow_id, {"escalated": True, "reason": reason}, "ESCALATE"
         )
 
-    def get_workflow_status(self, workflow_id: str) -> Dict[str, Any]:
+    def get_workflow_status(self, workflow_id: str) -> dict[str, Any]:
         """Retrieves the current status and state of a workflow."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -167,7 +168,7 @@ class WorkflowShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("wf_start", self.start_workflow, "Start a new industrial workflow."),
             (

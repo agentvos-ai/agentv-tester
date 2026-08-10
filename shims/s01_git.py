@@ -2,9 +2,10 @@ import logging
 import os
 import shutil
 import stat
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 try:
@@ -60,7 +61,7 @@ class GitShim(BaseShim):
                 shutil.rmtree(self.workspace_root, onerror=rmtree_errorhandler)
             except Exception as e:
                 # Common on Windows due to file locks in rapid test cycles
-                logger.debug(f"Git cleanup deferred: {str(e)}")
+                logger.debug(f"Git cleanup deferred: {e!s}")
 
     def reset(self) -> None:
         """Deterministic reset: clear and re-initialize a default repo."""
@@ -90,7 +91,7 @@ class GitShim(BaseShim):
         # unless we want to support external clones (which might be slow)
         raise ShimError(f"Repository '{repo_url}' not found in enterprise registry.")
 
-    def commit(self, repo: str, files: Dict[str, str], message: str) -> str:
+    def commit(self, repo: str, files: dict[str, str], message: str) -> str:
         """Creates a real commit in the specified repository."""
         repo_path = os.path.join(self.workspace_root, repo)
         if not os.path.exists(repo_path):
@@ -151,9 +152,9 @@ class GitShim(BaseShim):
         try:
             return r.git.diff(rev_a, rev_b)
         except Exception as e:
-            raise ShimError(f"Failed to get diff in '{repo}': {str(e)}")
+            raise ShimError(f"Failed to get diff in '{repo}': {e!s}")
 
-    def list_branches(self, repo: str) -> List[str]:
+    def list_branches(self, repo: str) -> list[str]:
         """Lists actual branches in the repository."""
         repo_path = os.path.join(self.workspace_root, repo)
         if not os.path.exists(repo_path):
@@ -162,7 +163,7 @@ class GitShim(BaseShim):
         r = Repo(repo_path)
         return [h.name for h in r.heads]
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("git_clone", self.clone, "Clone an enterprise repository."),
             ("git_commit", self.commit, "Commit changes to the current branch."),

@@ -2,9 +2,10 @@ import logging
 import os
 import shutil
 import stat
-from typing import List, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class FilesystemShim(BaseShim):
                 shutil.rmtree(self.workspace_root, onerror=rmtree_errorhandler)
             except Exception as e:
                 logger.warning(
-                    f"Failed to fully cleanup Filesystem workspace: {str(e)}"
+                    f"Failed to fully cleanup Filesystem workspace: {e!s}"
                 )
 
     def reset(self) -> None:
@@ -65,7 +66,7 @@ class FilesystemShim(BaseShim):
         self.write_file("logs/system.log", "System initialized.\n")
         self.write_file("config/app.yaml", "mode: production\n")
 
-    def list_files(self, path: str = ".") -> List[str]:
+    def list_files(self, path: str = ".") -> list[str]:
         """Lists files in the specified directory."""
         full_path = os.path.join(self.workspace_root, path)
         if not os.path.exists(full_path):
@@ -74,7 +75,7 @@ class FilesystemShim(BaseShim):
         try:
             return os.listdir(full_path)
         except Exception as e:
-            raise ShimError(f"Failed to list files in '{path}': {str(e)}")
+            raise ShimError(f"Failed to list files in '{path}': {e!s}")
 
     def read_file(self, path: str) -> str:
         """Reads the content of a file."""
@@ -86,7 +87,7 @@ class FilesystemShim(BaseShim):
             with open(full_path, "r") as f:
                 return f.read()
         except Exception as e:
-            raise ShimError(f"Failed to read file '{path}': {str(e)}")
+            raise ShimError(f"Failed to read file '{path}': {e!s}")
 
     def write_file(self, path: str, content: str) -> str:
         """Writes content to a file, creating directories if needed."""
@@ -98,7 +99,7 @@ class FilesystemShim(BaseShim):
                 f.write(content)
             return f"Successfully wrote to '{path}'."
         except Exception as e:
-            raise ShimError(f"Failed to write file '{path}': {str(e)}")
+            raise ShimError(f"Failed to write file '{path}': {e!s}")
 
     def delete_file(self, path: str) -> str:
         """Deletes a file or directory."""
@@ -113,9 +114,9 @@ class FilesystemShim(BaseShim):
                 os.remove(full_path)
             return f"Successfully deleted '{path}'."
         except Exception as e:
-            raise ShimError(f"Failed to delete '{path}': {str(e)}")
+            raise ShimError(f"Failed to delete '{path}': {e!s}")
 
-    def list_dir(self, path: str = ".") -> List[str]:
+    def list_dir(self, path: str = ".") -> list[str]:
         """Alias for list_files to maintain compatibility."""
         return self.list_files(path)
 
@@ -127,13 +128,13 @@ class FilesystemShim(BaseShim):
             shutil.move(full_src, full_dst)
             return f"Moved '{src}' to '{dst}'."
         except Exception as e:
-            raise ShimError(f"Failed to move '{src}' to '{dst}': {str(e)}")
+            raise ShimError(f"Failed to move '{src}' to '{dst}': {e!s}")
 
     def delete(self, path: str) -> str:
         """Alias for delete_file to maintain compatibility."""
         return self.delete_file(path)
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("fs_list", self.list_files, "List files in a directory."),
             ("fs_list_dir", self.list_dir, "List contents of a directory."),

@@ -1,12 +1,13 @@
-from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
 
 class ClinicalTriageInput(BaseModel):
     patient_id: str = Field(..., description="Unique identifier for the patient.")
-    symptoms: List[str] = Field(..., description="List of symptoms reported.")
+    symptoms: list[str] = Field(..., description="List of symptoms reported.")
     vital_signs: dict = Field(
         default_factory=dict, description="Current vital signs (HR, BP, etc.)"
     )
@@ -33,13 +34,13 @@ Analyze patient symptoms and vital signs to determine the appropriate department
 3. Escalate to 'hitl' if symptoms are life-threatening or ambiguous."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["knowledge_base", "database", "hitl"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return ClinicalTriageInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return ClinicalTriageOutput

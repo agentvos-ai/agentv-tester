@@ -1,5 +1,6 @@
-from typing import List, Type, Dict
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -9,14 +10,14 @@ class PatientDischargeInput(BaseModel):
         ..., description="Unique ID of the patient to be discharged."
     )
     discharge_date: str = Field(..., description="Target discharge date (ISO format).")
-    requirements: List[str] = Field(
+    requirements: list[str] = Field(
         default_factory=lambda: ["med_recon", "followup_check"]
     )
 
 
 class PatientDischargeOutput(BaseModel):
     readiness_score: float = Field(..., ge=0, le=100)
-    checklist_status: Dict[str, bool] = Field(
+    checklist_status: dict[str, bool] = Field(
         ..., description="Status of all discharge tasks."
     )
     summary_report: str
@@ -33,13 +34,13 @@ Coordinate discharge by verifying status in 'database', scheduling follow-ups in
 and sending instructions via 'email'."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["database", "calendar", "email", "support_desk"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return PatientDischargeInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return PatientDischargeOutput

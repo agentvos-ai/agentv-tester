@@ -1,15 +1,16 @@
-from typing import Any, Dict, List, Tuple
-from shims import BaseShim
+from typing import Any
+
 from core.registry import get_shim_class
+from shims import BaseShim
 
 
 class ShimRegistry:
     """Manages active shims with hot-swap support."""
 
-    def __init__(self, enabled_shims: List[str], seed: int = 42):
+    def __init__(self, enabled_shims: list[str], seed: int = 42):
         self._seed = seed
         self._enabled_names = enabled_shims
-        self.shims: Dict[str, BaseShim] = {}
+        self.shims: dict[str, BaseShim] = {}
         self.initialize_shims()
 
     def initialize_shims(self):
@@ -24,7 +25,7 @@ class ShimRegistry:
         """Allows swapping a shim at runtime for advanced testing scenarios."""
         self.shims[shim_name] = new_shim_instance
 
-    def get_all_tools(self) -> List[Tuple[str, Any, str]]:
+    def get_all_tools(self) -> list[tuple[str, Any, str]]:
         """Aggregates all tool specs from all active shims."""
         all_tools = []
         for shim in self.shims.values():

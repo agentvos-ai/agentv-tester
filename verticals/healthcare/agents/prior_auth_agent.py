@@ -1,5 +1,6 @@
-from typing import Type
+
 from pydantic import BaseModel, Field
+
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
 
@@ -39,9 +40,9 @@ To submit an authorization decision:
 """
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return PriorAuthInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return PriorAuthOutput

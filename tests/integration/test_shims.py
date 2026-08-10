@@ -1,5 +1,5 @@
-from shims.registry import ShimRegistry
 from shims import BaseShim
+from shims.registry import ShimRegistry
 
 
 def test_shim_registry_initialization():

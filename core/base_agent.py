@@ -1,8 +1,10 @@
-import logging
 import functools
+import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Tuple, Type
+from typing import Any
+
 from pydantic import BaseModel, ValidationError
+
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
 from core.errors import AgentExecutionError, ShimError
 
@@ -16,7 +18,7 @@ class BaseAgent(ABC):
     """
 
     def __init__(
-        self, config: Any, framework: BaseFrameworkAdapter, shims: Dict[str, Any]
+        self, config: Any, framework: BaseFrameworkAdapter, shims: dict[str, Any]
     ):
         self.config = config
         self.framework = framework
@@ -27,16 +29,14 @@ class BaseAgent(ABC):
     @abstractmethod
     def system_prompt(self) -> str:
         """The core instruction set for the agent."""
-        pass
 
     @property
     @abstractmethod
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         """List of shim names this agent is authorized to use."""
-        pass
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         """Defines the expected input structure. Defaults to flexible schema."""
 
         class DefaultInput(BaseModel):
@@ -46,7 +46,7 @@ class BaseAgent(ABC):
         return DefaultInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         """Defines the expected output structure. Defaults to flexible schema."""
 
         class DefaultOutput(BaseModel):
@@ -55,7 +55,7 @@ class BaseAgent(ABC):
 
         return DefaultOutput
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         """
         Returns gated and wrapped tool specs.
         Implements the 'Execution Feedback Loop' by catching shim errors
@@ -86,20 +86,20 @@ class BaseAgent(ABC):
                 return func(*args, **kwargs)
             except ShimError as e:
                 # Feedback Loop: Return the error to the LLM instead of crashing
-                msg = f"TOOL_ERROR ({tool_name}): {str(e)}"
+                msg = f"TOOL_ERROR ({tool_name}): {e!s}"
                 logger.warning(msg)
                 return msg
             except Exception as e:
                 # System Error: Log and return a generic error to avoid leaking internals
                 msg = f"SYSTEM_ERROR ({tool_name}): An internal error occurred. Please try again or use a different tool."
                 logger.error(
-                    f"Unexpected error in tool {tool_name}: {str(e)}", exc_info=True
+                    f"Unexpected error in tool {tool_name}: {e!s}", exc_info=True
                 )
                 return msg
 
         return wrapper
 
-    def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, task: dict[str, Any]) -> dict[str, Any]:
         """
         Primary entry point for the agentic external caller.
         Performs industrial-grade input validation and execution.
@@ -119,7 +119,7 @@ class BaseAgent(ABC):
                 validated_input = input_payload
             else:
                 raise AgentExecutionError(
-                    f"Industrial Input Validation Failed: {str(e)}"
+                    f"Industrial Input Validation Failed: {e!s}"
                 )
 
         if not self._runnable:
@@ -145,4 +145,4 @@ class BaseAgent(ABC):
                 "schema_validated": True,
             }
         except Exception as e:
-            raise AgentExecutionError(f"Agent execution failed: {str(e)}") from e
+            raise AgentExecutionError(f"Agent execution failed: {e!s}") from e

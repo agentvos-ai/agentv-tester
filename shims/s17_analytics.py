@@ -1,10 +1,11 @@
+import json
 import logging
 import os
 import sqlite3
-import json
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ class AnalyticsShim(BaseShim):
         finally:
             conn.close()
 
-    def create_report(self, title: str, metrics: List[str]) -> str:
+    def create_report(self, title: str, metrics: list[str]) -> str:
         """Generates a new business report."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -104,11 +105,11 @@ class AnalyticsShim(BaseShim):
             conn.commit()
             return f"Report '{title}' generated successfully."
         except Exception as e:
-            raise ShimError(f"Failed to create report: {str(e)}")
+            raise ShimError(f"Failed to create report: {e!s}")
         finally:
             conn.close()
 
-    def get_kpi(self, kpi_name: str) -> Dict[str, Any]:
+    def get_kpi(self, kpi_name: str) -> dict[str, Any]:
         """Retrieves a Key Performance Indicator."""
         val = self.query_metrics(kpi_name)
         return {
@@ -117,13 +118,13 @@ class AnalyticsShim(BaseShim):
             "status": "OPTIMAL" if val > 5 else "CRITICAL",
         }
 
-    def forecast(self, metric_id: str, periods: int) -> List[float]:
+    def forecast(self, metric_id: str, periods: int) -> list[float]:
         """Simulates forecasting based on historic metrics."""
         base = self.query_metrics(metric_id)
         # Simple linear projection with a bit of "industrial" noise
         return [base * (1 + 0.02 * i) for i in range(1, periods + 1)]
 
-    def aggregate_metrics(self, metric_ids: List[str], operation: str = "sum") -> float:
+    def aggregate_metrics(self, metric_ids: list[str], operation: str = "sum") -> float:
         """Aggregates multiple metrics using sum, avg, min, or max."""
         if not metric_ids:
             return 0.0
@@ -149,7 +150,7 @@ class AnalyticsShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("analytics_query", self.query_metrics, "Query a business metric."),
             ("analytics_report", self.create_report, "Create a performance report."),

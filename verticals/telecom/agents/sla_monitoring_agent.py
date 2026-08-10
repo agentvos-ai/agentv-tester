@@ -1,5 +1,6 @@
-from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
@@ -29,13 +30,13 @@ Monitor 'analytics' for uptime and latency.
 If SLAs are breached, calculate 'payment' credits and notify customers via 'email'."""
 
     @property
-    def allowed_shims(self) -> List[str]:
+    def allowed_shims(self) -> list[str]:
         return ["analytics", "payment", "email", "database"]
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return SlaMonitoringInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return SlaMonitoringOutput

@@ -1,7 +1,8 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from core.registry import register_shim
 from shims import BaseShim
 
@@ -77,7 +78,7 @@ class ComplianceShim(BaseShim):
             conn.close()
 
     def perform_check(
-        self, resource_id: str, check_type: str, data: Dict[str, Any]
+        self, resource_id: str, check_type: str, data: dict[str, Any]
     ) -> str:
         """Performs a compliance check and logs it to the immutable audit trail."""
         # Simple rule: if 'amount' exists and > 10000, mark as 'WARNING'
@@ -99,11 +100,11 @@ class ComplianceShim(BaseShim):
         finally:
             conn.close()
 
-    def check_policy(self, resource_id: str, data: Dict[str, Any]) -> str:
+    def check_policy(self, resource_id: str, data: dict[str, Any]) -> str:
         """Alias for perform_check (Policy validation)."""
         return self.perform_check(resource_id, "POLICY_VAL", data)
 
-    def file_report(self, report_type: str, details: Dict[str, Any]) -> str:
+    def file_report(self, report_type: str, details: dict[str, Any]) -> str:
         """Files a compliance report."""
         import json
 
@@ -119,7 +120,7 @@ class ComplianceShim(BaseShim):
             resource_id, "VIOLATION", {"reason": reason, "amount": 99999}
         )
 
-    def get_audit_trail(self, resource_id: str = None) -> List[Dict[str, Any]]:
+    def get_audit_trail(self, resource_id: str | None = None) -> list[dict[str, Any]]:
         """Retrieves the audit trail, optionally filtered by resource."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -144,7 +145,7 @@ class ComplianceShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             (
                 "comp_check",

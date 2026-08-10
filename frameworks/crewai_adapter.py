@@ -1,9 +1,11 @@
-from typing import Dict, Any
-from crewai import Agent, Task, Crew, Process
+from typing import Any
+
+from crewai import Agent, Crew, Process, Task
 from langchain_core.tools import StructuredTool
+
 from core.base_framework import BaseFrameworkAdapter, RunnableAgent
-from core.registry import register_framework
 from core.errors import AgentExecutionError
+from core.registry import register_framework
 
 
 @register_framework("crewai")
@@ -38,8 +40,8 @@ class CrewAIRunnable(RunnableAgent):
         self._captured_tools = []
 
     def run(
-        self, task_str: str, context: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+        self, task_str: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         try:
             self._captured_tools = []
             full_task = task_str
@@ -65,4 +67,4 @@ class CrewAIRunnable(RunnableAgent):
 
             return {"output": str(result), "tool_calls": self._captured_tools}
         except Exception as e:
-            raise AgentExecutionError(f"CrewAI execution failed: {str(e)}") from e
+            raise AgentExecutionError(f"CrewAI execution failed: {e!s}") from e

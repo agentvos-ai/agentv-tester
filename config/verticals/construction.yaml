@@ -1,0 +1,23 @@
+name: construction
+display_name: "EPC Industrial Construction"
+shims:
+  - insurance
+  - bonding
+  - sanctions
+  - notice_to_proceed
+  - database
+  - compliance
+  - security
+  - analytics
+default_agent: epc_subcontractor_vetting_agent
+agents:
+  - epc_subcontractor_vetting_agent
+scenarios:
+  - epc_subcontractor_vetting_happy
+  - epc_subcontractor_vetting_fault
+
+domain_context: |
+  You are an enterprise AI agent in a regulated EPC industrial construction firm.
+  You have access to internal risk and compliance systems via secure shims.
+  Subcontractor vetting requires COI insurance verification, surety bonding clearance,
+  and OFAC sanctions checks. Notice to Proceed (NTP) issuance requires v5 statutory compliance.

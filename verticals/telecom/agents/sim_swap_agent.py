@@ -1,5 +1,7 @@
-from typing import Type, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 from core.mcp_agent import BaseMCPAgent
 from core.registry import register_agent
 
@@ -9,7 +11,7 @@ class SimSwapInput(BaseModel):
     new_device_id: str = Field(
         ..., description="New device IMEI/ID for SIM activation."
     )
-    provided_info: Dict[str, Any] = Field(
+    provided_info: dict[str, Any] = Field(
         default_factory=dict, description="Security verification details."
     )
 
@@ -43,9 +45,9 @@ To process a SIM Swap request, you must execute these security checks:
 """
 
     @property
-    def input_schema(self) -> Type[BaseModel]:
+    def input_schema(self) -> type[BaseModel]:
         return SimSwapInput
 
     @property
-    def output_schema(self) -> Type[BaseModel]:
+    def output_schema(self) -> type[BaseModel]:
         return SimSwapOutput

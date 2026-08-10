@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO)
@@ -75,8 +76,7 @@ def check_policy_coverage(
     payout = estimated_cost - remaining_deductible
     payout = max(0.0, payout)
 
-    if payout > policy["payout_limit"]:
-        payout = policy["payout_limit"]
+    payout = min(payout, policy["payout_limit"])
 
     return {
         "eligible": True,

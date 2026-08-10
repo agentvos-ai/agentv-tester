@@ -1,9 +1,10 @@
 import logging
 import os
 import sqlite3
-from typing import List, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ class CicdShim(BaseShim):
             conn.commit()
             return f"Pipeline '{pipeline_id}' triggered."
         except Exception as e:
-            raise ShimError(f"Failed to trigger pipeline: {str(e)}")
+            raise ShimError(f"Failed to trigger pipeline: {e!s}")
         finally:
             conn.close()
 
@@ -114,11 +115,11 @@ class CicdShim(BaseShim):
             conn.commit()
             return f"Pipeline '{pipeline_id}' cancelled."
         except Exception as e:
-            raise ShimError(f"Failed to cancel pipeline: {str(e)}")
+            raise ShimError(f"Failed to cancel pipeline: {e!s}")
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("cicd_trigger", self.trigger_pipeline, "Trigger a CI/CD pipeline run."),
             ("cicd_status", self.get_status, "Check the status of a pipeline run."),

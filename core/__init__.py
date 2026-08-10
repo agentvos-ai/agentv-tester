@@ -1,5 +1,5 @@
-import warnings
 import logging
+import warnings
 
 # Suppress noisy upstream deprecations and warnings for Python 3.14 industrial stack
 warnings.filterwarnings("ignore", message=".*UnionGenericAlias.*")

@@ -188,6 +188,7 @@ Merges suite.yaml with the appropriate vertical/framework/llm YAML,
 produces a frozen AgentConfig dataclass used by all components.
 No agent code ever reads os.environ directly — only via AgentConfig.
 """
+
 from __future__ import annotations
 import os
 from dataclasses import dataclass, field
@@ -200,7 +201,7 @@ import yaml
 class LLMConfig:
     provider: str
     model: str
-    api_key_env: str           # name of the env var, never the key itself
+    api_key_env: str  # name of the env var, never the key itself
     base_url: str | None = None
     extra: Dict[str, Any] = field(default_factory=dict)
 
@@ -271,8 +272,8 @@ from typing import Any, Dict
 class BaseShim(ABC):
     """Common contract for all 20 enterprise shims."""
 
-    name: str          # matches s01_git → "git"
-    description: str   # shown to LLM as tool description
+    name: str  # matches s01_git → "git"
+    description: str  # shown to LLM as tool description
 
     def __init__(self, seed: int = 42):
         self._seed = seed
@@ -533,14 +534,14 @@ class ClaudeProvider(BaseLLMProvider):
 
     def __init__(self, config):
         super().__init__(config)
-        self._client = anthropic.Anthropic(
-            api_key=os.environ[config.api_key_env]
-        )
+        self._client = anthropic.Anthropic(api_key=os.environ[config.api_key_env])
 
     def chat(self, messages, tools=None, **kwargs):
         # Convert OpenAI-style messages to Anthropic format
         # Strip system message from list and pass as system=
-        system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
+        system_msg = next(
+            (m["content"] for m in messages if m["role"] == "system"), None
+        )
         user_msgs = [m for m in messages if m["role"] != "system"]
         resp = self._client.messages.create(
             model=self.config.model,
@@ -550,7 +551,11 @@ class ClaudeProvider(BaseLLMProvider):
             tools=tools or [],
         )
         # Normalise to OpenAI-compatible dict
-        return {"choices": [{"message": {"role": "assistant", "content": resp.content[0].text}}]}
+        return {
+            "choices": [
+                {"message": {"role": "assistant", "content": resp.content[0].text}}
+            ]
+        }
 
     def stream(self, messages, tools=None, **kwargs):
         # Implement streaming via resp.stream()
@@ -577,16 +582,19 @@ _LLM_REGISTRY: Dict[str, Type[BaseLLMProvider]] = {}
 
 def register_llm(name: str):
     """Decorator. Usage: @register_llm("ollama")"""
+
     def decorator(cls: Type[BaseLLMProvider]):
         _LLM_REGISTRY[name] = cls
         return cls
+
     return decorator
 
 
 def get_llm_provider(name: str, config) -> BaseLLMProvider:
     if name not in _LLM_REGISTRY:
-        raise ValueError(f"LLM provider '{name}' not registered. "
-                         f"Available: {list(_LLM_REGISTRY)}")
+        raise ValueError(
+            f"LLM provider '{name}' not registered. Available: {list(_LLM_REGISTRY)}"
+        )
     return _LLM_REGISTRY[name](config)
 
 
@@ -639,6 +647,7 @@ from core.registry import register_framework
 class LangChainAdapter(BaseFrameworkAdapter):
     def build_agent(self, system_prompt: str):
         from langchain_core.tools import StructuredTool
+
         lc_tools = [
             StructuredTool.from_function(
                 func=shim_fn,
@@ -649,12 +658,14 @@ class LangChainAdapter(BaseFrameworkAdapter):
         ]
         # Wrap self.llm in a LangChain-compatible ChatModel
         lc_llm = _wrap_llm_for_langchain(self.llm)
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("placeholder", "{chat_history}"),
-            ("human", "{input}"),
-            ("placeholder", "{agent_scratchpad}"),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("placeholder", "{chat_history}"),
+                ("human", "{input}"),
+                ("placeholder", "{agent_scratchpad}"),
+            ]
+        )
         agent = create_tool_calling_agent(lc_llm, lc_tools, prompt)
         return AgentExecutor(agent=agent, tools=lc_tools, verbose=self.config.verbose)
 ```
@@ -681,10 +692,14 @@ class LangGraphAdapter(BaseFrameworkAdapter):
         tool_node = ToolNode(self._lc_tools())
 
         graph = StateGraph(AgentState)
-        graph.add_node("llm", lambda state: {"messages": [lc_llm.invoke(state["messages"])]})
+        graph.add_node(
+            "llm", lambda state: {"messages": [lc_llm.invoke(state["messages"])]}
+        )
         graph.add_node("tools", tool_node)
         graph.set_entry_point("llm")
-        graph.add_conditional_edges("llm", _should_call_tools, {"tools": "tools", "end": END})
+        graph.add_conditional_edges(
+            "llm", _should_call_tools, {"tools": "tools", "end": END}
+        )
         graph.add_edge("tools", "llm")
         return graph.compile()
 ```
@@ -798,13 +813,13 @@ Real-world enterprise fraud detection agent.
 Monitors transactions, applies ML risk scoring, files SARs, notifies compliance.
 Zero awareness of any evaluation harness.
 """
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
 
 @register_agent("fintech", "fraud_detection_agent")
 class FraudDetectionAgent(BaseAgent):
-
     @property
     def system_prompt(self) -> str:
         return """You are an AI-powered Fraud Detection Specialist at a global bank.
@@ -833,20 +848,41 @@ each decision. Never approve a transaction you cannot justify."""
         # Uses 6 of the 20 shims: database, rest_api, analytics,
         # compliance, notification, hitl
         return [
-            ("query_transactions", self._shims["database"].query,
-             "Query the transaction database. Args: sql_query (str)"),
-            ("get_transaction_risk_score", self._shims["rest_api"].get,
-             "GET risk score from fraud scoring API. Args: endpoint (str)"),
-            ("run_fraud_analytics", self._shims["analytics"].query_metrics,
-             "Run pattern analysis. Args: metric_name (str), filters (dict)"),
-            ("check_compliance_policy", self._shims["compliance"].check_policy,
-             "Validate action against AML/BSA policy. Args: action (str), context (dict)"),
-            ("file_sar_report", self._shims["compliance"].file_report,
-             "File a Suspicious Activity Report. Args: transaction_id (str), details (dict)"),
-            ("send_alert", self._shims["notification"].send_webhook,
-             "Send alert to compliance team. Args: channel (str), message (str)"),
-            ("escalate_to_human", self._shims["hitl"].request_human_review,
-             "Escalate to human compliance officer. Args: case_id (str), summary (str)"),
+            (
+                "query_transactions",
+                self._shims["database"].query,
+                "Query the transaction database. Args: sql_query (str)",
+            ),
+            (
+                "get_transaction_risk_score",
+                self._shims["rest_api"].get,
+                "GET risk score from fraud scoring API. Args: endpoint (str)",
+            ),
+            (
+                "run_fraud_analytics",
+                self._shims["analytics"].query_metrics,
+                "Run pattern analysis. Args: metric_name (str), filters (dict)",
+            ),
+            (
+                "check_compliance_policy",
+                self._shims["compliance"].check_policy,
+                "Validate action against AML/BSA policy. Args: action (str), context (dict)",
+            ),
+            (
+                "file_sar_report",
+                self._shims["compliance"].file_report,
+                "File a Suspicious Activity Report. Args: transaction_id (str), details (dict)",
+            ),
+            (
+                "send_alert",
+                self._shims["notification"].send_webhook,
+                "Send alert to compliance team. Args: channel (str), message (str)",
+            ),
+            (
+                "escalate_to_human",
+                self._shims["hitl"].request_human_review,
+                "Escalate to human compliance officer. Args: case_id (str), summary (str)",
+            ),
         ]
 ```
 
@@ -859,13 +895,13 @@ Clinical AI triage agent for emergency department.
 Reads vitals, assesses acuity, routes patients, escalates critical cases.
 Operates under HIPAA and clinical safety protocols.
 """
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
 
 @register_agent("healthcare", "clinical_triage_agent")
 class ClinicalTriageAgent(BaseAgent):
-
     @property
     def system_prompt(self) -> str:
         return """You are a Clinical Decision Support AI assisting ED triage nurses.
@@ -890,18 +926,36 @@ PHI must not appear in system logs — use patient_id only."""
     def get_tools(self) -> list:
         # Uses 6 shims: iot, database, knowledge_base, hitl, notification, compliance
         return [
-            ("read_vitals", self._shims["iot"].read_sensor,
-             "Read patient vitals from bedside monitor. Args: device_id (str)"),
-            ("query_patient_record", self._shims["database"].query,
-             "Query EHR for patient history. Args: sql_query (str)"),
-            ("search_clinical_evidence", self._shims["knowledge_base"].search,
-             "Search clinical knowledge base. Args: query (str), top_k (int)"),
-            ("check_hipaa_compliance", self._shims["compliance"].check_policy,
-             "Verify action is HIPAA compliant. Args: action (str), context (dict)"),
-            ("request_physician_review", self._shims["hitl"].request_human_review,
-             "Escalate to attending physician. Args: patient_id (str), acuity (str), summary (str)"),
-            ("send_clinical_alert", self._shims["notification"].send_push,
-             "Send alert to clinical team. Args: team (str), message (str), priority (str)"),
+            (
+                "read_vitals",
+                self._shims["iot"].read_sensor,
+                "Read patient vitals from bedside monitor. Args: device_id (str)",
+            ),
+            (
+                "query_patient_record",
+                self._shims["database"].query,
+                "Query EHR for patient history. Args: sql_query (str)",
+            ),
+            (
+                "search_clinical_evidence",
+                self._shims["knowledge_base"].search,
+                "Search clinical knowledge base. Args: query (str), top_k (int)",
+            ),
+            (
+                "check_hipaa_compliance",
+                self._shims["compliance"].check_policy,
+                "Verify action is HIPAA compliant. Args: action (str), context (dict)",
+            ),
+            (
+                "request_physician_review",
+                self._shims["hitl"].request_human_review,
+                "Escalate to attending physician. Args: patient_id (str), acuity (str), summary (str)",
+            ),
+            (
+                "send_clinical_alert",
+                self._shims["notification"].send_push,
+                "Send alert to clinical team. Args: team (str), message (str), priority (str)",
+            ),
         ]
 ```
 
@@ -914,13 +968,13 @@ Network Operations Center AI agent.
 Detects, diagnoses, and remediates network faults autonomously.
 Triggers change-management workflows for infrastructure changes.
 """
+
 from core.base_agent import BaseAgent
 from core.registry import register_agent
 
 
 @register_agent("telecom", "network_fault_agent")
 class NetworkFaultAgent(BaseAgent):
-
     @property
     def system_prompt(self) -> str:
         return """You are an autonomous Network Operations AI for a Tier-1 carrier.
@@ -946,20 +1000,41 @@ All infrastructure changes require change-approval workflow sign-off."""
     def get_tools(self) -> list:
         # Uses 6 shims: iot, analytics, rest_api, support_desk, notification, cicd
         return [
-            ("read_network_telemetry", self._shims["iot"].read_sensor,
-             "Read telemetry from network node. Args: node_id (str), metric (str)"),
-            ("analyse_fault_pattern", self._shims["analytics"].query_metrics,
-             "Analyse metric for fault pattern. Args: metric_name (str), window (str)"),
-            ("query_network_inventory", self._shims["rest_api"].get,
-             "Query network inventory API. Args: endpoint (str), params (dict)"),
-            ("create_trouble_ticket", self._shims["support_desk"].create_ticket,
-             "Open NOC trouble ticket. Args: title (str), severity (str), details (dict)"),
-            ("update_trouble_ticket", self._shims["support_desk"].update_ticket,
-             "Update existing ticket. Args: ticket_id (str), update (dict)"),
-            ("trigger_remediation_pipeline", self._shims["cicd"].trigger_pipeline,
-             "Trigger automated remediation. Args: pipeline_id (str), params (dict)"),
-            ("send_noc_alert", self._shims["notification"].send_webhook,
-             "Alert NOC team. Args: severity (str), message (str)"),
+            (
+                "read_network_telemetry",
+                self._shims["iot"].read_sensor,
+                "Read telemetry from network node. Args: node_id (str), metric (str)",
+            ),
+            (
+                "analyse_fault_pattern",
+                self._shims["analytics"].query_metrics,
+                "Analyse metric for fault pattern. Args: metric_name (str), window (str)",
+            ),
+            (
+                "query_network_inventory",
+                self._shims["rest_api"].get,
+                "Query network inventory API. Args: endpoint (str), params (dict)",
+            ),
+            (
+                "create_trouble_ticket",
+                self._shims["support_desk"].create_ticket,
+                "Open NOC trouble ticket. Args: title (str), severity (str), details (dict)",
+            ),
+            (
+                "update_trouble_ticket",
+                self._shims["support_desk"].update_ticket,
+                "Update existing ticket. Args: ticket_id (str), update (dict)",
+            ),
+            (
+                "trigger_remediation_pipeline",
+                self._shims["cicd"].trigger_pipeline,
+                "Trigger automated remediation. Args: pipeline_id (str), params (dict)",
+            ),
+            (
+                "send_noc_alert",
+                self._shims["notification"].send_webhook,
+                "Alert NOC team. Args: severity (str), message (str)",
+            ),
         ]
 ```
 
@@ -974,6 +1049,7 @@ Exposes the active agent via HTTP at /execute_task.
 Compatible with the ai-agent-eval-harness AGENT_API_URL contract.
 This server knows about the config layer but the agents themselves do not.
 """
+
 from flask import Flask, request, jsonify
 from core.config_loader import ConfigLoader
 from core.registry import get_llm_provider, get_framework_adapter, get_agent
@@ -987,14 +1063,14 @@ shim_registry = ShimRegistry(config.shims_enabled, seed=config.seed)
 llm_provider = get_llm_provider(config.llm.provider, config.llm)
 agent_cls = get_agent(config.vertical, config.active_agent)
 agent_instance = agent_cls(
-    framework_agent=None,   # built lazily
+    framework_agent=None,  # built lazily
     shims=shim_registry.get_all(),
     config=config,
 )
 tool_specs = agent_instance.get_tools()
 framework = get_framework_adapter(config.framework, llm_provider, tool_specs, config)
 runnable = framework.build_agent(agent_instance.system_prompt)
-agent_instance._agent = runnable   # wire the built agent back
+agent_instance._agent = runnable  # wire the built agent back
 
 
 @app.route("/execute_task", methods=["POST"])
@@ -1014,13 +1090,15 @@ def execute_task():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({
-        "status": "ok",
-        "vertical": config.vertical,
-        "framework": config.framework,
-        "llm": config.llm.provider,
-        "model": config.llm.model,
-    })
+    return jsonify(
+        {
+            "status": "ok",
+            "vertical": config.vertical,
+            "framework": config.framework,
+            "llm": config.llm.provider,
+            "model": config.llm.model,
+        }
+    )
 
 
 if __name__ == "__main__":
@@ -1176,6 +1254,7 @@ Verifies every vertical × framework × LLM combination can:
 
 Does NOT call real LLMs — uses a MockLLMProvider.
 """
+
 import itertools
 import pytest
 import requests
@@ -1186,14 +1265,18 @@ FRAMEWORKS = ["langchain", "langgraph", "autogen", "crewai"]
 LLMS = ["openai", "claude", "gemini", "grok", "ollama"]
 
 
-@pytest.mark.parametrize("vertical,framework,llm",
-    itertools.product(VERTICALS, FRAMEWORKS, LLMS))
+@pytest.mark.parametrize(
+    "vertical,framework,llm", itertools.product(VERTICALS, FRAMEWORKS, LLMS)
+)
 def test_combo_boots(vertical, framework, llm, mock_llm_provider):
     """Each combination must load config and instantiate an agent without error."""
     from core.config_loader import ConfigLoader
     from core.registry import get_agent, get_framework_adapter
 
-    with patch("core.config_loader.ConfigLoader._read", side_effect=_config_override(vertical, framework, llm)):
+    with patch(
+        "core.config_loader.ConfigLoader._read",
+        side_effect=_config_override(vertical, framework, llm),
+    ):
         config = ConfigLoader().load()
         agent_cls = get_agent(config.vertical, "default")
         assert agent_cls is not None

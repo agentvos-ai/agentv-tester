@@ -1,8 +1,9 @@
 import os
-import yaml
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
+
+import yaml
 
 
 @dataclass(frozen=True)
@@ -11,16 +12,16 @@ class LLMConfig:
     model: str
     api_key_env: str
     base_url: str | None = None
-    fallbacks: List[str] = field(default_factory=list)
-    extra: Dict[str, Any] = field(default_factory=dict)
+    fallbacks: list[str] = field(default_factory=list)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class VerticalConfig:
     name: str
-    shims: List[str]
-    agents: List[str]
-    scenarios: List[str] = field(default_factory=list)
+    shims: list[str]
+    agents: list[str]
+    scenarios: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -28,8 +29,8 @@ class SuiteConfig:
     active_vertical: str
     active_framework: str
     active_llm: str
-    llms: Dict[str, LLMConfig]
-    verticals: Dict[str, VerticalConfig]
+    llms: dict[str, LLMConfig]
+    verticals: dict[str, VerticalConfig]
     seed: int = 42
 
 
@@ -66,8 +67,8 @@ class ConfigLoader:
 
         # Ensure all plugins are registered before validation
         try:
-            import llm_providers  # noqa: F401
             import frameworks  # noqa: F401
+            import llm_providers  # noqa: F401
             import shims  # noqa: F401
         except ImportError:
             pass
@@ -75,7 +76,7 @@ class ConfigLoader:
         try:
             get_framework_adapter(framework)
         except Exception as e:
-            raise ConfigError(f"Invalid framework configuration: {str(e)}")
+            raise ConfigError(f"Invalid framework configuration: {e!s}")
 
         vertical_cfg = loader._read(f"verticals/{vertical}.yaml")
         llm_cfg_raw = loader._read(f"llms/{llm_name}.yaml")
@@ -120,7 +121,7 @@ class ConfigLoader:
             ),
         )
 
-    def _read(self, rel_path: str) -> Dict[str, Any]:
+    def _read(self, rel_path: str) -> dict[str, Any]:
         path = self.CONFIG_DIR / rel_path
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {path}")

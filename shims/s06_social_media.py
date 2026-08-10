@@ -1,9 +1,10 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
-from core.registry import register_shim
+from typing import Any
+
 from core.errors import ShimError
+from core.registry import register_shim
 from shims import BaseShim
 
 logger = logging.getLogger(__name__)
@@ -81,11 +82,11 @@ class SocialMediaShim(BaseShim):
             conn.commit()
             return "Post published successfully."
         except Exception as e:
-            raise ShimError(f"Failed to post: {str(e)}")
+            raise ShimError(f"Failed to post: {e!s}")
         finally:
             conn.close()
 
-    def get_mentions(self) -> List[Dict[str, Any]]:
+    def get_mentions(self) -> list[dict[str, Any]]:
         """Retrieves recent mentions."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -99,7 +100,7 @@ class SocialMediaShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("social_post", self.post, "Create a new social media post."),
             ("social_mentions", self.get_mentions, "Get recent mentions and tags."),

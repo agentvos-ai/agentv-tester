@@ -1,4 +1,6 @@
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
+
+import verticals  # noqa: F401
 from core.registry import get_agent_class
 
 
@@ -22,6 +24,9 @@ def test_all_vertical_agents_coverage():
             "provisioning_agent",
             "sla_monitoring_agent",
         ],
+        "construction": [
+            "epc_subcontractor_vetting_agent",
+        ],
     }
 
     mock_config = MagicMock()
@@ -32,6 +37,10 @@ def test_all_vertical_agents_coverage():
         "analytics",
         "compliance",
         "notification",
+        "insurance",
+        "bonding",
+        "sanctions",
+        "notice_to_proceed",
         "ehr",
         "clinical_decision",
         "billing",
@@ -59,7 +68,7 @@ def test_all_vertical_agents_coverage():
     for s in mock_shims.values():
         s.get_tool_specs.return_value = [("tool", lambda x: x, "desc")]
 
-    for vertical, agents in verticals.items():
+    for agents in verticals.values():
         for agent_name in agents:
             agent_cls = get_agent_class(agent_name)
             agent = agent_cls(mock_config, mock_framework, mock_shims)

@@ -1,7 +1,8 @@
 import logging
 import os
 import sqlite3
-from typing import List, Dict, Any, Tuple
+from typing import Any
+
 from core.registry import register_shim
 from shims import BaseShim
 
@@ -82,7 +83,7 @@ class NotificationShim(BaseShim):
         finally:
             conn.close()
 
-    def send_webhook(self, url: str, payload: Dict[str, Any]) -> str:
+    def send_webhook(self, url: str, payload: dict[str, Any]) -> str:
         """Sends a webhook notification."""
         import json
 
@@ -97,7 +98,7 @@ class NotificationShim(BaseShim):
         finally:
             conn.close()
 
-    def list_sent(self) -> List[Dict[str, Any]]:
+    def list_sent(self) -> list[dict[str, Any]]:
         """Retrieves history of sent notifications."""
         conn = sqlite3.connect(self.db_path)
         try:
@@ -117,7 +118,7 @@ class NotificationShim(BaseShim):
         finally:
             conn.close()
 
-    def get_tool_specs(self) -> List[Tuple[str, Any, str]]:
+    def get_tool_specs(self) -> list[tuple[str, Any, str]]:
         return [
             ("notify_push", self.send_push, "Send a push notification."),
             ("notify_sms", self.send_sms, "Send an SMS message."),
