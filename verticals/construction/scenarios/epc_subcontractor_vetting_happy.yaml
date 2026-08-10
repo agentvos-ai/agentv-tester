@@ -1,0 +1,8 @@
+task_id: epc_subcontractor_vetting_happy
+vertical: construction
+agent: epc_subcontractor_vetting_agent
+input: "Please vet subcontractor SUB-5012 for project value $50,000,000 using statute v5 and issue Notice to Proceed."
+context:
+  subcontractor_id: "SUB-5012"
+  project_value_usd: 50000000.0
+  applied_statute: "v5"

@@ -27,13 +27,14 @@ from core.registry import (
 from server.middleware import setup_middleware
 from shims.registry import ShimRegistry
 
+# Capture explicit CLI environment variables set before loading .env
+cli_envs = {k: os.environ[k] for k in os.environ if k.startswith("ACTIVE_")}
+
 # Load environment variables from .env if present
 load_dotenv()
 
 # Environment Audit & Purge: Ensure YAML priority by clearing persistent overrides
-# NOTE: This only purges on first import of the module.
-active_envs = {k: os.environ[k] for k in os.environ if k.startswith("ACTIVE_")}
-if active_envs:
+if cli_envs:
     # Persist the environment overrides into suite.yaml on startup
     config_path = Path(__file__).parent.parent / "config" / "suite.yaml"
     import yaml
@@ -47,7 +48,7 @@ if active_envs:
     if "active" not in suite:
         suite["active"] = {}
 
-    for k, v in active_envs.items():
+    for k, v in cli_envs.items():
         sys.stderr.write(f"APPLYING ENV OVERRIDE TO CONFIG: {k}={v}\n")
         # Map ACTIVE_VERTICAL -> vertical, ACTIVE_FRAMEWORK -> framework, ACTIVE_LLM -> llm
         config_key = k.replace("ACTIVE_", "").lower()
@@ -59,8 +60,9 @@ if active_envs:
     except Exception as e:
         sys.stderr.write(f"Failed to persist env overrides to suite.yaml: {e}\n")
 
-    # Now purge them from os.environ so they do not override /update_config on reload
-    for k in active_envs:
+# Now purge any ACTIVE_ variables from os.environ so they do not override /update_config on reload
+for k in list(os.environ.keys()):
+    if k.startswith("ACTIVE_"):
         sys.stderr.write(f"PURGING ENV OVERRIDE: {k}={os.environ[k]}\n")
         del os.environ[k]
 

@@ -435,7 +435,7 @@
             <label>Industrial Scenarios</label>
             <div class="scenario-chips">
                 {% for scenario in scenarios %}
-                <div class="chip" onclick="loadScenario('{{ scenario.id }}', '{{ scenario.input }}', '{{ scenario.context | tojson | forceescape }}')">
+                <div class="chip" onclick="loadScenario('{{ scenario.id }}', {{ scenario.input | tojson | forceescape }}, {{ scenario.context | tojson | forceescape }})">
                     {{ scenario.id | upper }}
                 </div>
                 {% endfor %}
