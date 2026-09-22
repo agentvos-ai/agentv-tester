@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, Field
 
 from core.base_agent import BaseAgent

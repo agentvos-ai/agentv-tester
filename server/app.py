@@ -24,6 +24,7 @@ from core.registry import (
     list_frameworks,
     list_llms,
 )
+from server.acceptance_state_oracle import create_acceptance_state_oracle
 from server.middleware import setup_middleware
 from shims.registry import ShimRegistry
 
@@ -92,6 +93,16 @@ def get_config() -> Any:
 def create_app() -> Flask:
     app = Flask(__name__)
     setup_middleware(app)
+    # Separate acceptance authority: its ledger is never read from or written
+    # through AgentV artifacts, traces, or verification internals.
+    app.register_blueprint(
+        create_acceptance_state_oracle(
+            os.environ.get(
+                "ACCEPTANCE_ORACLE_DB",
+                root_dir / "scratch" / "acceptance_oracle.sqlite",
+            )
+        )
+    )
 
     @app.route("/execute_task", methods=["POST"])
     def execute_task():

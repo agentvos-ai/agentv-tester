@@ -53,9 +53,7 @@ class FilesystemShim(BaseShim):
             try:
                 shutil.rmtree(self.workspace_root, onerror=rmtree_errorhandler)
             except Exception as e:
-                logger.warning(
-                    f"Failed to fully cleanup Filesystem workspace: {e!s}"
-                )
+                logger.warning(f"Failed to fully cleanup Filesystem workspace: {e!s}")
 
     def reset(self) -> None:
         """Deterministic reset of the filesystem."""

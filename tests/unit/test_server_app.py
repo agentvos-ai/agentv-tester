@@ -142,8 +142,9 @@ def test_execute_task_llm_instantiation_failure(client):
     mock_config.active_llm = "gemini"
     mock_config.llms = {"gemini": MagicMock(fallbacks=[])}
 
-    with patch("server.app.get_config", return_value=mock_config), patch(
-        "server.app.get_llm_provider", side_effect=Exception("Instantiate fail")
+    with (
+        patch("server.app.get_config", return_value=mock_config),
+        patch("server.app.get_llm_provider", side_effect=Exception("Instantiate fail")),
     ):
         # Middleware should catch this as 500
         rv = client.post(

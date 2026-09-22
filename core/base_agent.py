@@ -118,9 +118,7 @@ class BaseAgent(ABC):
             if self.input_schema.__name__ == "DefaultInput":
                 validated_input = input_payload
             else:
-                raise AgentExecutionError(
-                    f"Industrial Input Validation Failed: {e!s}"
-                )
+                raise AgentExecutionError(f"Industrial Input Validation Failed: {e!s}")
 
         if not self._runnable:
             # Build the agent within the chosen framework on first run
