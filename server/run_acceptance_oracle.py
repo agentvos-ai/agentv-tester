@@ -2,6 +2,7 @@
 
 Avoids importing the tester application's LLM/framework stack in CI.
 """
+
 from __future__ import annotations
 
 import os
@@ -12,7 +13,9 @@ from server.acceptance_state_oracle import create_acceptance_state_oracle
 
 app = Flask(__name__)
 app.register_blueprint(
-    create_acceptance_state_oracle(os.environ.get("ACCEPTANCE_ORACLE_DB", "acceptance_oracle.sqlite"))
+    create_acceptance_state_oracle(
+        os.environ.get("ACCEPTANCE_ORACLE_DB", "acceptance_oracle.sqlite")
+    )
 )
 
 
