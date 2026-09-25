@@ -1,5 +1,5 @@
 active:
-  framework: langchain
+  framework: langgraph
   llm: mock
   vertical: healthcare
 agent:
