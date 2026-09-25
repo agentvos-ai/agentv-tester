@@ -92,7 +92,7 @@ class MCPClient:
                         {
                             "name": tool.name,
                             "description": tool.description,
-                            "input_schema": tool.inputSchema,
+                            "input_schema": getattr(tool, "input_schema", getattr(tool, "inputSchema", None)),
                         }
                         for tool in response.tools
                     ]
@@ -105,7 +105,7 @@ class MCPClient:
                         {
                             "name": tool.name,
                             "description": tool.description,
-                            "input_schema": tool.inputSchema,
+                            "input_schema": getattr(tool, "input_schema", getattr(tool, "inputSchema", None)),
                         }
                         for tool in response.tools
                     ]

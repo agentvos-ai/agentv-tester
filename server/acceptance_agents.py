@@ -1,4 +1,4 @@
-"""Deterministic independent actors for AgentV release acceptance.
+"""Deterministic independent actors for testbed release acceptance.
 
 These are fixture implementations of the finance-agent boundaries: separate
 risk, payment, approval and document actors backed by the acceptance oracle.
@@ -18,8 +18,8 @@ from flask import Flask, jsonify, request
 
 def _digest(value: object) -> str:
     return (
-        "sha3_256:"
-        + hashlib.sha3_256(
+        "sha256:"
+        + hashlib.sha256(
             json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
     )
@@ -91,7 +91,7 @@ def create_acceptance_agents(oracle_url: str, approval_file: str | Path) -> Flas
 if __name__ == "__main__":
     create_acceptance_agents(
         os.environ.get(
-            "AGENTV_ACCEPTANCE_ORACLE_URL", "http://127.0.0.1:8099/acceptance-oracle"
+            "ACCEPTANCE_ORACLE_URL", "http://127.0.0.1:8099/acceptance-oracle"
         ),
         os.environ.get("ACCEPTANCE_APPROVAL_FILE", "acceptance_approval.json"),
     ).run(host="127.0.0.1", port=int(os.environ.get("PORT", "8100")))

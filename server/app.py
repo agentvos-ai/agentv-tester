@@ -25,7 +25,12 @@ from core.registry import (
     list_llms,
 )
 from server.acceptance_state_oracle import create_acceptance_state_oracle
+from server.authorization_state_service import (
+    create_authorization_state_blueprint,
+    create_healthcare_state_blueprint,
+)
 from server.middleware import setup_middleware
+from server.openapi import get_openapi_spec
 from shims.registry import ShimRegistry
 
 # Capture explicit CLI environment variables set before loading .env
@@ -94,7 +99,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
     setup_middleware(app)
     # Separate acceptance authority: its ledger is never read from or written
-    # through AgentV artifacts, traces, or verification internals.
+    # through evaluator artifacts, traces, or verification internals.
     app.register_blueprint(
         create_acceptance_state_oracle(
             os.environ.get(
@@ -103,6 +108,9 @@ def create_app() -> Flask:
             )
         )
     )
+    # Durable authorization state authority: owns prior-auth ledger, human reviews, and outbox
+    app.register_blueprint(create_authorization_state_blueprint())
+    app.register_blueprint(create_healthcare_state_blueprint())
 
     @app.route("/execute_task", methods=["POST"])
     def execute_task():
@@ -304,6 +312,11 @@ def create_app() -> Flask:
         return jsonify(
             {"status": "success", "message": "Configuration updated and reloaded"}
         )
+
+    @app.route("/openapi.json", methods=["GET"])
+    def openapi():
+        """Expose standard OpenAPI 3.1 specification."""
+        return jsonify(get_openapi_spec()), 200
 
     @app.route("/favicon.ico")
     def favicon():

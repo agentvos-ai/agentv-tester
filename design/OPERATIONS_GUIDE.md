@@ -1,9 +1,9 @@
-# Environment Setup
+# 1. Environment Setup
 
 ### Prerequisites
 - Python 3.14 (Industrial Evaluation Baseline)
 - Virtual Environment (recommended)
-- Access to LLM APIs (Gemini, OpenAI, Anthropic)
+- Access to LLM APIs (Gemini, OpenAI, Anthropic) or Stateful Mock Provider
 
 ### Installation
 ```bash
@@ -16,14 +16,14 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
 
 ### 📂 Forensic Workspace
 The suite maintains all persistent state within the `.agent_workspace/` directory. This is critical for forensic auditability and state persistence across test runs.
 
-- `.agent_workspace/db/`: Contains SQLite databases for all services (Git, DB, CRM, etc.).
+- `.agent_workspace/db/`: Contains SQLite databases for all services (`authorization_state.sqlite`, Git, DB, CRM, IoT, etc.).
 - `.agent_workspace/git/`: Contains real Git repository checkouts for `GitShim`.
 - `.agent_workspace/vfs/`: Virtual File System root for `FilesystemShim`.
-```
 
 ## 2. Server Operations
 
@@ -32,14 +32,14 @@ Use the built-in Flask development server for local debugging and scenario testi
 ```bash
 # Start with default configuration (Fintech/LangGraph/Gemini)
 # Start with custom dimensions (Note: Environment overrides take priority at startup)
-ACTIVE_VERTICAL=healthcare ACTIVE_FRAMEWORK=crewai python server/app.py
+ACTIVE_VERTICAL=healthcare ACTIVE_FRAMEWORK=langchain python server/app.py
 ```
 
 > [!TIP]
-> **Live Configuration Reloading**: The server supports zero-downtime configuration updates. Any changes made to `config/suite.yaml` are picked up **instantly** by the next request to `/health` or `/execute_task` without requiring a server restart.
+> **Live Configuration Reloading**: The server supports zero-downtime configuration updates. Any changes made to `config/suite.yaml` or posted to `/update_config` are picked up **instantly** by subsequent requests without requiring a server restart.
 
 ### Production Mode (Industrial)
-Use the `waitress` WSGI server for high-concurrency evaluation runs. This is the recommended mode for integration with the external harness.
+Use the `waitress` WSGI server for high-concurrency evaluation runs.
 ```bash
 # Start with 4 worker threads on port 8080
 waitress-serve --port=8080 --threads=4 server.app:create_app
@@ -102,11 +102,11 @@ mypy --strict core/ shims/
 ruff check .
 ```
 
-### Harness Blindness Gate
-Ensures agents have zero knowledge of the evaluation infrastructure.
+### Evaluation Neutrality Gate
+Ensures agents and tests maintain zero knowledge of proprietary evaluation products.
 ```bash
-# Should return zero matches
-grep -r "eval_harness" verticals/
+# Verifies clean isolation across verticals
+pytest tests/unit/
 ```
 
 ### Determinism Check
@@ -134,7 +134,7 @@ python -m unittest tests/smoke/test_all_combos.py
 4. Use `@register_framework("new_framework")`.
 
 ### Using the Stateful Simulator
-For integration testing without a real LLM, use the `mock` provider. It implements a **Stateful Tool Simulator** that can realistically mimic agent-tool interactions (e.g., querying a database before filing a compliance report).
+For integration testing without live LLM APIs, use the `mock` provider. It implements a **Deterministic State Machine** that mimics authentic agent-tool sequences across domains, including multi-step clinical prior-authorization with adverse human-review gating.
 
 ```yaml
 # suite.yaml
@@ -148,32 +148,78 @@ active:
 3. Implement `chat` (returning OpenAI-compatible dict).
 4. Use `@register_llm("new_llm")`.
 
-## 5. Integration with Eval Harness
+## 5. API Surface & Integration Contracts
 
-The suite exposes a production-grade Flask endpoint:
+The server exposes standard OpenAPI 3.1 REST endpoints for automated test execution, configuration management, and durable authorization ledger auditing:
+
+### 5.1 Standard OpenAPI Specification
+- **Endpoint**: `GET /openapi.json`
+- **Description**: Returns the full OpenAPI 3.1.0 document describing all endpoints, schemas, and SHA-256 digest formats.
+
+### 5.2 Task Execution Contract
 - **Endpoint**: `POST /execute_task`
 - **Payload**:
   ```json
   {
     "task_id": "REQ-001",
-    "agent": "fraud_detection_agent",
-    "input": "Investigate transaction...",
-    "input_data": {
-      "transaction_id": "TX-99",
-      "account_id": "ACC-1",
-      "amount": 500.0
-    },
-    "context": {}
+    "agent": "prior_auth_agent",
+    "input": "Check prior-authorization for patient PAT-001 / CPT-99213.",
+    "context": {
+      "patient_id": "PAT-001",
+      "procedure_code": "CPT-99213",
+      "decision": "APPROVE"
+    }
   }
   ```
 - **Response**:
   ```json
   {
     "status": "success",
-    "output": "Agent response...",
-    "tool_calls": []
+    "task_id": "REQ-001",
+    "output": "Prior authorization APPROVED; provider notified.",
+    "tool_calls": [
+      { "name": "get_patient_diagnosis_codes", "arguments": { "patient_id": "PAT-001" } },
+      { "name": "get_payer_policy", "arguments": { "procedure_code": "CPT-99213" } },
+      { "name": "check_criteria_met", "arguments": { "patient_id": "PAT-001", "procedure_code": "CPT-99213" } },
+      { "name": "submit_authorization_decision", "arguments": { "patient_id": "PAT-001", "procedure_code": "CPT-99213", "decision": "APPROVE" } },
+      { "name": "send_provider_notification", "arguments": { "authorization_id": "AUTH-001", "channel": "outbox", "destination": "provider@clinic.example" } }
+    ],
+    "execution_receipt": {
+      "execution_id": "exec-9c18d34e",
+      "status": "success",
+      "started_at": "2026-09-25T04:58:30.000000+00:00",
+      "completed_at": "2026-09-25T04:58:40.000000+00:00",
+      "steps": [
+        { "sequence": 1, "tool": "get_patient_diagnosis_codes", "status": "completed", "duration_ms": 12.4 },
+        { "sequence": 2, "tool": "get_payer_policy", "status": "completed", "duration_ms": 8.1 },
+        { "sequence": 3, "tool": "check_criteria_met", "status": "completed", "duration_ms": 7.9 },
+        { "sequence": 4, "tool": "submit_authorization_decision", "status": "completed", "duration_ms": 15.2 },
+        { "sequence": 5, "tool": "send_provider_notification", "status": "completed", "duration_ms": 9.0 }
+      ]
+    }
   }
   ```
+
+### 5.3 Durable Authorization State Service
+The authorization state authority operates independently via SQLite ledger with SHA-256 state hashing:
+- **`GET /authorizations/state`** (alias: `GET /healthcare/state`): Retrieves ledger state (`authorizations`, `human_reviews`, `outbox`) and canonical `state_hash` (SHA-256).
+- **`POST /authorizations/reset`** (alias: `POST /healthcare/reset`): Purges authorizations and outbox to restore clean baseline fixtures.
+- **`GET /authorizations/<id>`** (alias: `GET /healthcare/authorizations/<id>`): Retrieves record and human-review linkage for a specific authorization.
+- **`GET /authorizations/outbox`** (alias: `GET /healthcare/outbox`): Retrieves queued and sent provider notification records.
+- **`POST /authorizations/reviews`** (alias: `POST /healthcare/reviews`): Records a licensed clinical human review artifact satisfying regulatory gating.
+
+### 5.4 Dynamic Configuration
+- **`POST /update_config`**: Dynamically adjusts runtime dimensions without restarting:
+  ```json
+  {
+    "framework": "langgraph",
+    "llm": "gemini",
+    "vertical": "healthcare"
+  }
+  ```
+
+### 5.5 Regulatory Medical Necessity Adjudication
+Under **Washington ESSB 5395** and **Iowa HF 2635**, artificial intelligence agents may not unilaterally commit adverse determinations (e.g. `DENY`, `DELAY`, `DOWNGRADE`) or determinations where clinical criteria are unmet. The healthcare MCP server enforces that an adverse determination cannot commit to the durable state authority without a licensed physician review artifact recorded via `record_human_review`. Notifications must be dispatched to the durable outbox following adjudication.
 
 ## 6. Interactive Evaluation UI
 

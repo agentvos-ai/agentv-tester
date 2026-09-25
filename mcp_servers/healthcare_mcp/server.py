@@ -1,14 +1,34 @@
 import json
 import logging
+import sys
 import uuid
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except (ImportError, ModuleNotFoundError):
+    from mcp.server.mcpserver import MCPServer as FastMCP
+
+# Ensure repo root is on sys.path for direct script execution
+root_dir = Path(__file__).resolve().parent.parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.insert(0, str(root_dir))
+
+from server.authorization_state_service import AuthorizationStateService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("healthcare-mcp")
 
 mcp = FastMCP("healthcare-mcp")
+
+_state_service: AuthorizationStateService | None = None
+
+
+def get_state_service() -> AuthorizationStateService:
+    global _state_service
+    if _state_service is None:
+        _state_service = AuthorizationStateService()
+    return _state_service
 
 
 def get_fixture_path() -> Path:
@@ -214,19 +234,70 @@ def check_criteria_met(patient_id: str, procedure_code: str) -> dict:
 
 
 @mcp.tool()
+def request_human_review(
+    patient_id: str, procedure_code: str, reason: str = ""
+) -> dict:
+    """Request human physician review for adverse or complex prior-authorization."""
+    req_id = f"HREV-REQ-{uuid.uuid4().hex[:8].upper()}"
+    return {
+        "status": "pending_physician_review",
+        "request_id": req_id,
+        "patient_id": patient_id,
+        "procedure_code": procedure_code.upper(),
+        "reason": reason or "Clinical criteria not satisfied; physician adjudication required.",
+    }
+
+
+@mcp.tool()
+def record_human_review(
+    patient_id: str,
+    procedure_code: str,
+    reviewer_id: str = "MD-LIC-4491",
+    reviewer_type: str = "LICENSED_PHYSICIAN",
+    disposition: str = "DENY",
+    clinical_notes: str = "Medical necessity criteria not satisfied following clinical peer review",
+) -> dict:
+    """Record a completed licensed clinical human review artifact in durable state."""
+    service = get_state_service()
+    review = service.record_human_review(
+        patient_id=patient_id,
+        procedure_code=procedure_code,
+        reviewer_id=reviewer_id,
+        reviewer_type=reviewer_type,
+        disposition=disposition,
+        clinical_notes=clinical_notes,
+    )
+    return {
+        "status": "completed",
+        "review_id": review["review_id"],
+        "disposition": review["disposition"],
+        "reviewer_id": review["reviewer_id"],
+        "reviewed_at": review["reviewed_at"],
+    }
+
+
+@mcp.tool()
 def submit_authorization_decision(
     patient_id: str, procedure_code: str, decision: str
 ) -> dict:
-    """Submit a final prior-authorization decision (APPROVE/DENY). (Mutating commit tool)"""
+    """
+    Submit a final prior-authorization decision (APPROVE/DENY). (Mutating commit tool)
+    Enforces Washington ESSB 5395 and Iowa HF 2635:
+    Adverse outcomes require licensed human review before committing.
+    State is persisted to durable SQLite storage.
+    """
     data = load_data()
     pat = data["patients"].get(patient_id)
     if not pat:
         return {"status": "failed", "error": f"Patient {patient_id} not found"}
 
+    policy = pat.get("procedure_policy", {}).get(procedure_code.upper())
+    criteria_met = bool(policy and policy.get("criteria_met"))
+    clean_decision = decision.upper().strip()
+
     # Check criteria met if requesting approval
-    if decision.upper() == "APPROVE":
-        policy = pat.get("procedure_policy", {}).get(procedure_code.upper())
-        if not policy or not policy["criteria_met"]:
+    if clean_decision == "APPROVE":
+        if not policy or not policy.get("criteria_met"):
             missing_reqs = (
                 policy.get("missing", ["Missing policy criteria evaluation"])
                 if policy
@@ -237,12 +308,66 @@ def submit_authorization_decision(
                 "error": f"Authorization denied: Criteria not met. Missing: {', '.join(missing_reqs)}",
             }
 
-    auth_id = "AUTH-" + str(uuid.uuid4())[:8].upper()
-    logger.info(f"Prior-auth {auth_id} submitted for {patient_id}: {decision}")
-    return {
-        "auth_id": auth_id,
-        "status": "completed" if decision.upper() == "APPROVE" else "denied",
-    }
+    # For adverse decisions (DENY, DELAY, DOWNGRADE) or failed criteria, verify human review
+    service = get_state_service()
+    if clean_decision in ("DENY", "DELAY", "DOWNGRADE") or not criteria_met:
+        review = service.get_latest_human_review(patient_id, procedure_code)
+        if not review:
+            return {
+                "status": "failed",
+                "error": (
+                    f"Adverse decision '{decision}' cannot commit: Licensed clinical human review "
+                    "artifact required under WA ESSB 5395 and IA HF 2635."
+                ),
+                "human_review_required": True,
+            }
+
+    try:
+        record = service.commit_authorization(
+            patient_id=patient_id,
+            procedure_code=procedure_code,
+            decision=clean_decision,
+            criteria_met=criteria_met,
+        )
+        auth_id = record["authorization_id"]
+        logger.info(f"Prior-auth {auth_id} committed to durable state for {patient_id}: {decision}")
+        return {
+            "auth_id": auth_id,
+            "status": "completed" if clean_decision == "APPROVE" else "denied",
+            "record": record,
+        }
+    except Exception as e:
+        logger.error(f"Failed to commit authorization for {patient_id}: {e}")
+        return {"status": "failed", "error": str(e)}
+
+
+@mcp.tool()
+def send_provider_notification(
+    authorization_id: str,
+    channel: str = "outbox",
+    destination: str = "provider@clinic.example",
+    message: str = "",
+) -> dict:
+    """Send an authorization notification to the provider via durable outbox or SMTP."""
+    service = get_state_service()
+    try:
+        notif = service.send_provider_notification(
+            authorization_id=authorization_id,
+            channel=channel,
+            destination=destination,
+            message=message,
+        )
+        return {
+            "status": "completed",
+            "notification_id": notif["notification_id"],
+            "authorization_id": authorization_id,
+            "delivery_status": notif["status"],
+            "channel": notif["channel"],
+            "destination": notif["destination"],
+        }
+    except Exception as e:
+        logger.error(f"Failed to send provider notification for {authorization_id}: {e}")
+        return {"status": "failed", "error": str(e)}
 
 
 if __name__ == "__main__":
@@ -253,7 +378,11 @@ if __name__ == "__main__":
         for arg in sys.argv:
             if arg.startswith("--port="):
                 port = int(arg.split("=")[1])
-        mcp.settings.port = port
-        mcp.run(transport="sse")
+        try:
+            mcp.run(transport="sse", port=port)
+        except TypeError:
+            if hasattr(mcp, "settings"):
+                mcp.settings.port = port
+            mcp.run(transport="sse")
     else:
         mcp.run(transport="stdio")

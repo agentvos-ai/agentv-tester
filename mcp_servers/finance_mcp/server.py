@@ -3,7 +3,10 @@ import logging
 import uuid
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except (ImportError, ModuleNotFoundError):
+    from mcp.server.mcpserver import MCPServer as FastMCP
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -213,7 +216,11 @@ if __name__ == "__main__":
         for arg in sys.argv:
             if arg.startswith("--port="):
                 port = int(arg.split("=")[1])
-        mcp.settings.port = port
-        mcp.run(transport="sse")
+        try:
+            mcp.run(transport="sse", port=port)
+        except TypeError:
+            if hasattr(mcp, "settings"):
+                mcp.settings.port = port
+            mcp.run(transport="sse")
     else:
         mcp.run(transport="stdio")

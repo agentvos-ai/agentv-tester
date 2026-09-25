@@ -1,12 +1,13 @@
-"""Independent acceptance-state authority for AgentV integration fixtures.
+"""Independent acceptance-state authority for integration test fixtures.
 
-This service owns a SQLite ledger distinct from AgentV run artifacts.  Test
-fixtures query it before and after a run and receive a SHA3-bound observation
-receipt.  It deliberately has no dependency on AgentV trace/manifest code.
+This service owns an isolated SQLite ledger distinct from test runner run artifacts.
+Test fixtures query it before and after a run and receive a SHA-256-bound observation
+receipt. It deliberately has no dependency on external harness trace/manifest code.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import sqlite3
@@ -27,7 +28,8 @@ def create_acceptance_state_oracle(database: str | Path) -> Blueprint:
         "acceptance_state_oracle", __name__, url_prefix="/acceptance-oracle"
     )
 
-    def connect() -> sqlite3.Connection:
+    @contextlib.contextmanager
+    def connect():
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         conn.execute(
@@ -36,7 +38,11 @@ def create_acceptance_state_oracle(database: str | Path) -> Blueprint:
         conn.execute(
             "CREATE TABLE IF NOT EXISTS transfers (id TEXT PRIMARY KEY, source TEXT, target TEXT, amount INTEGER, committed_at TEXT)"
         )
-        return conn
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
     @oracle.post("/reset")
     def reset():
@@ -66,14 +72,14 @@ def create_acceptance_state_oracle(database: str | Path) -> Blueprint:
         state = {"balances": balances, "transfers": transfers}
         return {
             "state": state,
-            "state_hash": "sha3_256:" + hashlib.sha3_256(_canonical(state)).hexdigest(),
+            "state_hash": "sha256:" + hashlib.sha256(_canonical(state)).hexdigest(),
         }
 
     @oracle.get("/state")
     def state():
         observation = {"observed_at": datetime.now(UTC).isoformat(), **snapshot()}
         observation["receipt_hash"] = (
-            "sha3_256:" + hashlib.sha3_256(_canonical(observation)).hexdigest()
+            "sha256:" + hashlib.sha256(_canonical(observation)).hexdigest()
         )
         return jsonify(observation)
 

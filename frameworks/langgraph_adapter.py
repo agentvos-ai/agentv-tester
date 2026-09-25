@@ -1,5 +1,7 @@
 import operator
+import uuid
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Annotated, Any, TypedDict
 
 from langchain_core.messages import (
@@ -134,6 +136,7 @@ class LangGraphRunnable(RunnableAgent):
         self.graph = graph
 
     def run(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        started_at = datetime.now(UTC).isoformat()
         try:
             full_task = task
             if context:
@@ -142,10 +145,59 @@ class LangGraphRunnable(RunnableAgent):
 
             initial_state = {"messages": [HumanMessage(content=full_task)]}
             final_state = self.graph.invoke(initial_state)
-            last_msg = final_state["messages"][-1]
+            messages = final_state.get("messages", [])
+            last_msg = messages[-1] if messages else HumanMessage(content="")
+
+            # Map ToolMessage results by tool_call_id
+            tool_outputs: dict[str, str] = {}
+            for m in messages:
+                if isinstance(m, ToolMessage):
+                    t_id = getattr(m, "tool_call_id", None)
+                    if t_id:
+                        tool_outputs[t_id] = str(m.content)
+
+            steps: list[dict[str, Any]] = []
+            all_tool_calls: list[dict[str, Any]] = []
+            sequence = 1
+
+            for m in messages:
+                if isinstance(m, AIMessage):
+                    tc_list = getattr(m, "tool_calls", []) or []
+                    for tc in tc_list:
+                        name = tc.get("name", "")
+                        args = tc.get("args", {})
+                        call_id = tc.get("id", "")
+                        all_tool_calls.append({"name": name, "arguments": args})
+
+                        raw_summary = tool_outputs.get(call_id, "")
+                        result_summary = str(raw_summary)
+                        if len(result_summary) > 300:
+                            result_summary = result_summary[:297] + "..."
+
+                        steps.append(
+                            {
+                                "sequence": sequence,
+                                "kind": "tool_call",
+                                "tool": name,
+                                "arguments": args,
+                                "result_summary": result_summary,
+                            }
+                        )
+                        sequence += 1
+
+            completed_at = datetime.now(UTC).isoformat()
+            execution_receipt = {
+                "execution_id": f"exec-{uuid.uuid4().hex[:12]}",
+                "steps": steps,
+                "started_at": started_at,
+                "completed_at": completed_at,
+                "status": "success",
+            }
+
             return {
-                "output": last_msg.content,
-                "tool_calls": getattr(last_msg, "tool_calls", []),
+                "output": getattr(last_msg, "content", str(last_msg)),
+                "tool_calls": all_tool_calls,
+                "execution_receipt": execution_receipt,
             }
         except Exception as e:
             raise AgentExecutionError(f"LangGraph execution failed: {e!s}") from e

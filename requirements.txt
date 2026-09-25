@@ -1,19 +1,19 @@
 # Core Frameworks
-langchain==1.3.10
+langchain==1.4.2
 langchain-community==0.4.2
-langgraph==1.2.6
-ag2==0.13.4
-crewai==1.14.7
-pydantic-ai==1.107.0
-semantic-kernel==1.43.1
+langgraph==1.2.12
+ag2==1.0.6
+# crewai==1.15.22
+# pydantic-ai==2.48.0
+# agent-framework==1.19.0
 
 # LLM SDKs
-google-genai==2.9.0
-openai==2.43.0
-anthropic==0.111.0
+google-genai==2.25.0
+langchain-openai==1.6.6
+langchain-anthropic>=1.7.4
 
 # Infrastructure & Simulators
-sqlalchemy==2.0.51
+sqlalchemy==2.1.0
 numpy==2.5.0
 flask==3.1.3
 pyyaml==6.0.3
@@ -28,4 +28,4 @@ mypy==2.1.0
 ruff==0.15.18
 
 # MCP
-mcp==1.28.0
+mcp==2.2.0

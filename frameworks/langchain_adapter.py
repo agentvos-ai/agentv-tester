@@ -1,3 +1,5 @@
+import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from langchain_classic.agents import AgentExecutor, create_structured_chat_agent
@@ -39,15 +41,27 @@ class LangChainAdapter(BaseFrameworkAdapter):
         lc_llm = self._get_lc_llm()
 
         agent = create_structured_chat_agent(lc_llm, tools, prompt)
-        executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+        executor = AgentExecutor(
+            agent=agent, tools=tools, verbose=True, return_intermediate_steps=True
+        )
 
         return LangChainRunnable(executor)
 
     def _get_lc_tools(self) -> list[StructuredTool]:
-        return [
-            StructuredTool.from_function(func=fn, name=name, description=desc)
-            for name, fn, desc in self.shim_tools
-        ]
+        lc_tools = []
+        for name, fn, desc in self.shim_tools:
+            args_schema = getattr(fn, "args_schema", None)
+            if args_schema:
+                lc_tools.append(
+                    StructuredTool.from_function(
+                        func=fn, name=name, description=desc, args_schema=args_schema
+                    )
+                )
+            else:
+                lc_tools.append(
+                    StructuredTool.from_function(func=fn, name=name, description=desc)
+                )
+        return lc_tools
 
     def _get_lc_llm(self):
         from langchain_core.language_models.chat_models import BaseChatModel
@@ -120,6 +134,7 @@ class LangChainRunnable(RunnableAgent):
         self.executor = executor
 
     def run(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        started_at = datetime.now(UTC).isoformat()
         try:
             full_task = task
             if context:
@@ -127,20 +142,47 @@ class LangChainRunnable(RunnableAgent):
                 full_task = f"CONTEXT:\n{ctx_str}\n\nTASK:\n{task}"
 
             result = self.executor.invoke({"input": full_task})
-            # Extract tool calls from intermediate steps if available
+            # Extract tool calls and build execution receipt steps
             tool_calls = []
+            steps = []
+            seq = 1
             if "intermediate_steps" in result:
-                for action, _ in result["intermediate_steps"]:
+                for action, observation in result["intermediate_steps"]:
+                    t_name = getattr(action, "tool", "")
+                    t_input = getattr(action, "tool_input", {})
                     tool_calls.append(
                         {
-                            "name": action.tool,
-                            "arguments": action.tool_input,
+                            "name": t_name,
+                            "arguments": t_input,
                         }
                     )
+                    obs_str = str(observation)
+                    if len(obs_str) > 300:
+                        obs_str = obs_str[:297] + "..."
+                    steps.append(
+                        {
+                            "sequence": seq,
+                            "kind": "tool_call",
+                            "tool": t_name,
+                            "arguments": t_input,
+                            "result_summary": obs_str,
+                        }
+                    )
+                    seq += 1
+
+            completed_at = datetime.now(UTC).isoformat()
+            execution_receipt = {
+                "execution_id": f"exec-{uuid.uuid4().hex[:12]}",
+                "steps": steps,
+                "started_at": started_at,
+                "completed_at": completed_at,
+                "status": "success",
+            }
 
             return {
                 "output": result["output"],
                 "tool_calls": tool_calls,
+                "execution_receipt": execution_receipt,
             }
         except Exception as e:
             raise AgentExecutionError(f"LangChain execution failed: {e!s}") from e

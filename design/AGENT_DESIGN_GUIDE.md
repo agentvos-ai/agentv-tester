@@ -1,6 +1,6 @@
 # Industrial Agent Design Guide
 
-This document defines the architectural principles, interface contracts, and functional specifications for the 12 industrial agents within the AgentV evaluation harness.
+This document defines the architectural principles, interface contracts, and functional specifications for the 12 industrial agents within the agent suite.
 
 ---
 
@@ -68,14 +68,21 @@ class BaseAgent(ABC):
 
 | Agent | Purpose | Primary Tools |
 | :--- | :--- | :--- |
-| **Prior Auth** | Processes insurance authorization requests against compliance rules and patient records. | `compliance`, `database`, `workflow`, `hitl` |
+| **Prior Auth** | Autonomous clinical prior-authorization evaluation enforcing statutory human review gates. | `get_patient_diagnosis_codes`, `get_payer_policy`, `check_criteria_met`, `request_human_review`, `record_human_review`, `submit_authorization_decision`, `send_provider_notification` (via `healthcare_mcp`) |
 | **Clinical Triage** | Analyzes patient vitals and symptoms to prioritize care levels. | `database`, `analytics`, `notification` |
 | **Medication Recon** | Compares medication lists to identify contradictions or missed dosages. | `database`, `search`, `compliance` |
 | **Patient Discharge** | Coordinates post-care instructions, pharmacy orders, and follow-up scheduling. | `database`, `workflow`, `email`, `calendar` |
 
-### Case Study: Prior Auth Agent
-- **Logic**: Cross-references patient history in `database` with insurance `compliance` matrices.
-- **Human-in-the-Loop**: Escalates complex denials to `hitl` to maintain medical safety standards.
+### Case Study: Prior Auth Agent (MCP-Native)
+- **Architecture**: Subclasses `BaseMCPAgent` and dynamically connects to `mcp_servers/healthcare_mcp/server.py`.
+- **Sequential 6-Step Workflow**:
+  1. Retrieve patient diagnosis ICD codes (`get_patient_diagnosis_codes`).
+  2. Retrieve payer clinical policy and criteria (`get_payer_policy`).
+  3. Evaluate clinical criteria satisfaction (`check_criteria_met`).
+  4. If criteria fail or adverse action (`DENY`, `DELAY`, `DOWNGRADE`) is indicated, mandate licensed clinical peer review (`request_human_review` / `record_human_review`) per WA ESSB 5395 and IA HF 2635.
+  5. Commit determination to durable SQLite ledger (`submit_authorization_decision`).
+  6. Dispatch provider notification to durable outbox (`send_provider_notification`).
+- **Forensic Ledger**: Persists transaction and human review linkage into `authorizations` and `human_reviews` tables with SHA-256 state hashing.
 
 ---
 
@@ -122,7 +129,7 @@ The suite uses **Pydantic V2** for industrial-grade input validation. Every agen
 The `context` object is a flexible dictionary that is injected into the agent's reasoning loop. Framework adapters (AG2, LangGraph, etc.) are responsible for prepending this context to the primary task input.
 
 #### Standard Industrial Context Keys
-While the context is dynamic, the following keys are standardized across the AgentV suite to ensure high-fidelity evaluation:
+While the context is dynamic, the following keys are standardized across the agent suite to ensure high-fidelity evaluation:
 
 | Key | Description | Example |
 | :--- | :--- | :--- |
@@ -154,11 +161,26 @@ If an agent detects missing critical context, it is instructed to:
   "output": "Transaction TXN_998 flagged for risk score 85. SAR filed.",
   "tool_calls": [
     {
-      "tool": "compliance_file_report",
-      "args": { "type": "SAR", "id": "TXN_998" },
-      "result": "Report filed: SAR-445"
+      "name": "compliance_file_report",
+      "arguments": { "type": "SAR", "id": "TXN_998" }
     }
-  ]
+  ],
+  "execution_receipt": {
+    "execution_id": "exec-9c18d34e",
+    "status": "success",
+    "started_at": "2026-09-25T04:58:30.000000+00:00",
+    "completed_at": "2026-09-25T04:58:40.000000+00:00",
+    "steps": [
+      {
+        "sequence": 1,
+        "tool": "compliance_file_report",
+        "arguments": { "type": "SAR", "id": "TXN_998" },
+        "result_summary": "Report filed: SAR-445",
+        "status": "completed",
+        "duration_ms": 14.5
+      }
+    ]
+  }
 }
 ```
 
@@ -166,5 +188,5 @@ If an agent detects missing critical context, it is instructed to:
 
 ## 6. Implementation Notes for Evaluators
 - **Statelessness**: Agents are instantiated per request to prevent cross-scenario drift.
-- **Traceability**: Every tool call is logged in the `tool_calls` list for trajectory analysis.
-- **Parity**: The `BaseAgent` ensures that whether running on AG2 or LangGraph, the agent prompt and tool availability remain identical for fair benchmarking.
+- **Traceability**: Every tool call is logged in the `tool_calls` list and trajectory-ordered `execution_receipt` for forensic inspection.
+- **Parity**: The `BaseAgent` ensures that whether running on AG2, LangChain, or LangGraph, the agent prompt and tool availability remain identical for fair benchmarking.

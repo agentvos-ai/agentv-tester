@@ -1,6 +1,6 @@
 # 🚀 ANTIGRAVITY CODING ASSISTANT PROMPT
 ## Multi-Vertical Agentic Test Suite
-### Target Harness: `najeed/ai-agent-eval-harness` (Industrial Baseline v3.0.0)
+### Target: Enterprise AI Agent Testbed (Industrial Baseline v3.0.0)
 
 ---
 
@@ -1046,7 +1046,7 @@ All infrastructure changes require change-approval workflow sign-off."""
 # server/app.py
 """
 Exposes the active agent via HTTP at /execute_task.
-Compatible with the ai-agent-eval-harness AGENT_API_URL contract.
+Compatible with standard agent evaluation execution contracts.
 This server knows about the config layer but the agents themselves do not.
 """
 
@@ -1145,7 +1145,7 @@ build-backend = "setuptools.backends.legacy:build"
 [project]
 name = "agent-test-suite"
 version = "1.0.0"
-description = "Multi-vertical agentic test suite for najeed/ai-agent-eval-harness"
+description = "Multi-vertical agentic test suite for enterprise AI agents"
 requires-python = ">=3.10"
 
 [project.scripts]

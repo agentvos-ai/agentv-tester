@@ -1,7 +1,7 @@
 active:
-  framework: langgraph
-  llm: gemini
-  vertical: fintech
+  framework: langchain
+  llm: mock
+  vertical: healthcare
 agent:
   max_turns: 10
   temperature: 0.1

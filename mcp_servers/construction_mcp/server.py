@@ -1,6 +1,9 @@
 import logging
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except (ImportError, ModuleNotFoundError):
+    from mcp.server.mcpserver import MCPServer as FastMCP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("construction-mcp")

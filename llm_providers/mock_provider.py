@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any
 
 from core.base_llm import BaseLLMProvider
@@ -35,30 +36,185 @@ class MockLLMProvider(BaseLLMProvider):
         # Build history of called tools
         called_tools = []
         for m in messages:
-            if m.get("role") == "assistant":
-                if m.get("tool_calls"):
-                    for tc in m["tool_calls"]:
-                        called_tools.append(tc["function"]["name"])
-                # Fallback: parse action from JSON block inside markdown content
-                content = m.get("content", "")
-                if content and "```json" in content:
+            content = str(m.get("content", ""))
+            if m.get("tool_calls"):
+                for tc in m["tool_calls"]:
+                    called_tools.append(tc["function"]["name"])
+            if m.get("role") == "tool" and m.get("name"):
+                called_tools.append(m.get("name"))
+            if "```json" in content:
+                for block in content.split("```json")[1:]:
                     try:
-                        json_str = content.split("```json")[1].split("```")[0].strip()
+                        json_str = block.split("```")[0].strip()
                         parsed = json.loads(json_str)
-                        if "action" in parsed and parsed["action"] not in (
-                            "Final Answer",
-                            "final answer",
-                        ):
-                            called_tools.append(parsed["action"])
+                        act = parsed.get("action")
+                        if act and act not in ("Final Answer", "final answer"):
+                            called_tools.append(act)
                     except Exception:
                         pass
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("Action:") and not stripped.startswith("Action: Final Answer"):
+                    act_val = stripped.split("Action:", 1)[1].strip().strip("`")
+                    if act_val and not act_val.startswith("{") and act_val not in ("Final Answer", "final answer"):
+                        called_tools.append(act_val)
 
         tool_calls = []
         action = "Final Answer"
         action_input = "Mock response: Analysis complete."
 
+        # Extract available tool names if tools spec was provided
+        avail_tools = set()
+        if tools:
+            for t in tools:
+                if isinstance(t, dict):
+                    if "function" in t:
+                        avail_tools.add(t["function"].get("name", ""))
+                    elif "name" in t:
+                        avail_tools.add(t.get("name", ""))
+
+        # Scenario 0: Healthcare Prior-Authorization (Happy and Adverse Flows)
+        is_prior_auth = (
+            any(
+                k in full_user_text
+                for k in [
+                    "prior-auth",
+                    "prior_auth",
+                    "prior auth",
+                    "cpt-99213",
+                    "cpt-33510",
+                    "hc-pa",
+                    "authorization",
+                ]
+            )
+            or "submit_authorization_decision" in avail_tools
+            or "get_patient_diagnosis_codes" in avail_tools
+        )
+
+        if is_prior_auth:
+            is_adverse = any(
+                k in full_user_text
+                for k in ["pat-002", "cpt-33510", "hc-pa-fault", "deny", "denial", "adverse"]
+            )
+            patient_id = "PAT-002" if is_adverse else "PAT-001"
+            procedure_code = "CPT-33510" if is_adverse else "CPT-99213"
+
+            # Parse auth_id if present from previous tool responses in message history
+            auth_id = "AUTH-MOCK-001"
+            for m in messages:
+                c = str(m.get("content", ""))
+                match = re.search(r"AUTH-[A-Za-z0-9]+", c)
+                if match:
+                    auth_id = match.group(0)
+                    break
+
+            if "get_patient_diagnosis_codes" not in called_tools:
+                action = "get_patient_diagnosis_codes"
+                action_input = {"patient_id": patient_id}
+                tool_calls.append(
+                    {
+                        "id": "call_pa_diag_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "get_payer_policy" not in called_tools:
+                action = "get_payer_policy"
+                action_input = {"procedure_code": procedure_code}
+                tool_calls.append(
+                    {
+                        "id": "call_pa_policy_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "check_criteria_met" not in called_tools:
+                action = "check_criteria_met"
+                action_input = {
+                    "patient_id": patient_id,
+                    "procedure_code": procedure_code,
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_pa_criteria_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif is_adverse and "request_human_review" not in called_tools:
+                action = "request_human_review"
+                action_input = {
+                    "patient_id": patient_id,
+                    "procedure_code": procedure_code,
+                    "reason": "Criteria not met: missing stress test report and cardiology referral.",
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_pa_hrev_req_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif is_adverse and "record_human_review" not in called_tools:
+                action = "record_human_review"
+                action_input = {
+                    "patient_id": patient_id,
+                    "procedure_code": procedure_code,
+                    "reviewer_id": "MD-LIC-4491",
+                    "reviewer_type": "LICENSED_PHYSICIAN",
+                    "disposition": "DENY",
+                    "clinical_notes": "Licensed physician review confirmed absence of required stress test and cardiology consult.",
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_pa_hrev_rec_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "submit_authorization_decision" not in called_tools:
+                action = "submit_authorization_decision"
+                action_input = {
+                    "patient_id": patient_id,
+                    "procedure_code": procedure_code,
+                    "decision": "DENY" if is_adverse else "APPROVE",
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_pa_submit_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "send_provider_notification" not in called_tools:
+                action = "send_provider_notification"
+                action_input = {
+                    "authorization_id": auth_id,
+                    "channel": "outbox",
+                    "destination": "provider@clinic.example",
+                    "message": (
+                        f"Prior authorization {procedure_code} DENIED following physician review."
+                        if is_adverse
+                        else f"Prior authorization {procedure_code} APPROVED for {patient_id}."
+                    ),
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_pa_notify_1",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            else:
+                action = "Final Answer"
+                action_input = (
+                    f"Prior authorization for {patient_id} / {procedure_code} processed: "
+                    f"{'DENIED following licensed physician review' if is_adverse else 'APPROVED'}; "
+                    f"provider notified."
+                )
+
         # Scenario 1: Fraud Detection
-        if any(k in full_user_text for k in ["transaction", "fraud"]):
+        elif any(k in full_user_text for k in ["transaction", "fraud"]):
             if "db_query" not in called_tools:
                 action = "db_query"
                 action_input = {"query": "SELECT * FROM transactions"}

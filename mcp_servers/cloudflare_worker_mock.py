@@ -1,6 +1,6 @@
 """
-Cloudflare Worker Edge Isolate Mock for agentv-tester.
-Simulates V8 Isolate edge execution with non-blocking async telemetry pushes to AgentV's drift_receiver endpoint.
+Cloudflare Worker Edge Isolate Mock for agent testing.
+Simulates V8 Isolate edge execution with non-blocking async telemetry pushes to an external drift receiver endpoint.
 """
 
 import logging

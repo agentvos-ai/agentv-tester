@@ -140,6 +140,7 @@ class BaseAgent(ABC):
                 "task_id": task.get("task_id"),
                 "output": output_data,
                 "tool_calls": result.get("tool_calls", []),
+                "execution_receipt": result.get("execution_receipt"),
                 "schema_validated": True,
             }
         except Exception as e:
