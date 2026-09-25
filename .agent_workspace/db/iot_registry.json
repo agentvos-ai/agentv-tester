@@ -15,6 +15,6 @@
   },
   "actuator-01": {
     "type": "VALVE",
-    "status": "CLOSED"
+    "status": "OPEN"
   }
 }
