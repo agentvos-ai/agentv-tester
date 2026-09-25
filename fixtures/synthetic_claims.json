@@ -1,0 +1,34 @@
+{
+  "claims": {
+    "CLAIM-001": {
+      "claim_id": "CLAIM-001",
+      "patient_id": "PAT-001",
+      "procedure_code": "CPT-99213",
+      "billed_amount": 150.0,
+      "date_of_service": "2026-06-25",
+      "status": "SUBMITTED",
+      "details": "Standard outpatient office visit."
+    },
+    "CLAIM-002": {
+      "claim_id": "CLAIM-002",
+      "patient_id": "PAT-001",
+      "procedure_code": "CPT-99213",
+      "billed_amount": 150.0,
+      "date_of_service": "2026-06-25",
+      "status": "SUBMITTED",
+      "details": "Duplicate submission of office visit."
+    }
+  },
+  "insurance_policies": {
+    "PAT-001": {
+      "deductible": 500.0,
+      "deductible_met": 450.0,
+      "coinsurance_pct": 0.2,
+      "max_coverage_limit": 10000.0,
+      "covered_procedures": [
+        "CPT-99213"
+      ]
+    }
+  },
+  "adjudicated_claims": {}
+}
