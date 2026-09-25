@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.pool import StaticPool
 
 from core.errors import ShimError
 from core.registry import register_shim
@@ -18,7 +19,12 @@ class DatabaseShim(BaseShim):
     """
 
     def __init__(self, seed: int = 42):
-        self.engine = create_engine("sqlite:///:memory:", echo=False)
+        self.engine = create_engine(
+            "sqlite:///:memory:",
+            echo=False,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
         super().__init__(seed)
 
     @property
@@ -55,13 +61,27 @@ class DatabaseShim(BaseShim):
                     "INSERT INTO accounts (id, name, balance) VALUES (2, 'Fraud Reserve', 50000.0)"
                 )
             )
+            conn.execute(text("DROP TABLE IF EXISTS transactions"))
+            conn.execute(
+                text(
+                    "CREATE TABLE transactions (id TEXT PRIMARY KEY, account_id TEXT, amount REAL, status TEXT)"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO transactions (id, account_id, amount, status) VALUES ('TX-9982', 'ACC-771', 75000.0, 'FLAGGED')"
+                )
+            )
             conn.commit()
 
-    def query(self, sql: str) -> list[dict[str, Any]]:
+    def query(self, sql: str = "", query: str = "") -> list[dict[str, Any]]:
         """Executes a SELECT query."""
+        sql_stmt = sql or query
+        if not sql_stmt:
+            raise ShimError("Database query failed: SQL statement cannot be empty.")
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(text(sql))
+                result = conn.execute(text(sql_stmt))
                 return [dict(row._mapping) for row in result]
         except Exception as e:
             raise ShimError(f"Database query failed: {e!s}")

@@ -74,30 +74,295 @@ class MockLLMProvider(BaseLLMProvider):
         if tools:
             for t in tools:
                 if isinstance(t, dict):
-                    if "function" in t:
+                    if "function" in t and isinstance(t["function"], dict):
                         avail_tools.add(t["function"].get("name", ""))
                     elif "name" in t:
                         avail_tools.add(t.get("name", ""))
+                    elif "function_declarations" in t:
+                        for fd in t.get("function_declarations", []):
+                            if isinstance(fd, dict) and "name" in fd:
+                                avail_tools.add(fd["name"])
+        if not avail_tools:
+            for m in messages:
+                c = str(m.get("content", ""))
+                match = re.search(r"Tool Names:\s*([^\n]+)", c)
+                if match:
+                    for name in match.group(1).split(","):
+                        if name.strip():
+                            avail_tools.add(name.strip())
+                match_try = re.search(r"try one of \[([^\]]+)\]", c)
+                if match_try:
+                    for name in match_try.group(1).split(","):
+                        if name.strip():
+                            avail_tools.add(name.strip())
 
-        # Scenario 0: Healthcare Prior-Authorization (Happy and Adverse Flows)
-        is_prior_auth = (
-            any(
+        # Determine active scenario with tool capability given highest precedence
+        is_auto_insurance = False
+        is_claims_processing = False
+        is_prior_auth = False
+        is_fraud_detection = False
+        is_network_fault = False
+
+        if (
+            "submit_auto_adjudication" in avail_tools
+            or "get_auto_claim" in avail_tools
+            or "detect_suspicious_claim" in avail_tools
+        ):
+            is_auto_insurance = True
+        elif (
+            "submit_claim_adjudication" in avail_tools
+            or "get_claim_status" in avail_tools
+            or "check_duplicate_claims" in avail_tools
+        ):
+            is_claims_processing = True
+        elif (
+            "submit_authorization_decision" in avail_tools
+            or "get_patient_diagnosis_codes" in avail_tools
+            or "request_human_review" in avail_tools
+        ):
+            is_prior_auth = True
+        elif (
+            "iot_read" in avail_tools
+            or "iot_command" in avail_tools
+            or "network_test" in avail_tools
+            or "node_reboot" in avail_tools
+        ):
+            is_network_fault = True
+        elif (
+            "comp_check" in avail_tools
+            or "comp_report" in avail_tools
+            or "comp_policy" in avail_tools
+        ):
+            is_fraud_detection = True
+        else:
+            # Fallback to inspecting prompt text when tools were not explicitly supplied
+            if any(
+                k in full_user_text
+                for k in ["auto claim", "auto claims", "auto insurance", "auto-claim"]
+            ):
+                is_auto_insurance = True
+            elif any(
+                k in full_user_text
+                for k in [
+                    "claim-001",
+                    "claim-002",
+                    "claims processing",
+                    "process claim",
+                ]
+            ):
+                is_claims_processing = True
+            elif any(
                 k in full_user_text
                 for k in [
                     "prior-auth",
                     "prior_auth",
                     "prior auth",
-                    "cpt-99213",
-                    "cpt-33510",
+                    "prior-authorization",
                     "hc-pa",
-                    "authorization",
+                    "cpt-33510",
                 ]
-            )
-            or "submit_authorization_decision" in avail_tools
-            or "get_patient_diagnosis_codes" in avail_tools
-        )
+            ):
+                is_prior_auth = True
+            elif any(
+                k in full_user_text
+                for k in ["node", "fault", "sensor-01", "telecom", "outage"]
+            ):
+                is_network_fault = True
+            elif any(
+                k in full_user_text
+                for k in ["transaction", "fraud", "sar", "aml", "acc-"]
+            ):
+                is_fraud_detection = True
 
-        if is_prior_auth:
+        # Scenario: Auto Insurance Claims Processing
+        if is_auto_insurance:
+            if "get_auto_claim" not in called_tools:
+                action = "get_auto_claim"
+                action_input = {
+                    "claim_id": "AUTO-CLAIM-002"
+                    if "auto-claim-002" in full_user_text
+                    else "AUTO-CLAIM-001"
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_auto_claim_get",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "detect_suspicious_claim" not in called_tools:
+                action = "detect_suspicious_claim"
+                action_input = {
+                    "policy_id": "POL-102"
+                    if "auto-claim-002" in full_user_text
+                    else "POL-101",
+                    "claim_type": "Theft"
+                    if "auto-claim-002" in full_user_text
+                    else "Collision",
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_auto_claim_susp",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif (
+                "verify_accident_report" not in called_tools
+                and "auto-claim-002" not in full_user_text
+            ):
+                action = "verify_accident_report"
+                action_input = {"claim_id": "AUTO-CLAIM-001"}
+                tool_calls.append(
+                    {
+                        "id": "call_auto_claim_rep",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif (
+                "check_policy_coverage" not in called_tools
+                and "auto-claim-002" not in full_user_text
+            ):
+                action = "check_policy_coverage"
+                action_input = {
+                    "policy_id": "POL-101",
+                    "claim_type": "Collision",
+                    "estimated_cost": 1200.00,
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_auto_claim_cov",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "submit_auto_adjudication" not in called_tools:
+                action = "submit_auto_adjudication"
+                if "auto-claim-002" in full_user_text:
+                    action_input = {
+                        "claim_id": "AUTO-CLAIM-002",
+                        "decision": "DENIED",
+                        "payout_amount": 0.0,
+                        "comment": "Suspicious claim activity detected",
+                    }
+                else:
+                    action_input = {
+                        "claim_id": "AUTO-CLAIM-001",
+                        "decision": "APPROVED",
+                        "payout_amount": 1200.00,
+                        "comment": "Adjudicated successfully",
+                    }
+                tool_calls.append(
+                    {
+                        "id": "call_auto_claim_adj",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            else:
+                action = "Final Answer"
+                if "auto-claim-002" in full_user_text:
+                    action_input = "Auto claim AUTO-CLAIM-002 processed: DENIED due to suspicion of fraud."
+                else:
+                    action_input = (
+                        "Auto claim AUTO-CLAIM-001 processed: APPROVED for $1200.00."
+                    )
+
+        # Scenario: Claims Processing
+        elif is_claims_processing:
+            if "get_claim_status" not in called_tools:
+                action = "get_claim_status"
+                action_input = {
+                    "claim_id": "CLAIM-002"
+                    if "claim-002" in full_user_text
+                    else "CLAIM-001"
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_claim_status",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "validate_claim_format" not in called_tools:
+                action = "validate_claim_format"
+                action_input = {
+                    "claim_id": "CLAIM-002"
+                    if "claim-002" in full_user_text
+                    else "CLAIM-001"
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_claim_val",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "check_duplicate_claims" not in called_tools:
+                action = "check_duplicate_claims"
+                action_input = {
+                    "patient_id": "PAT-001",
+                    "procedure_code": "CPT-99213",
+                    "date_of_service": "2026-06-25",
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_claim_dup",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif (
+                "verify_policy_rules" not in called_tools
+                and "claim-002" not in full_user_text
+            ):
+                action = "verify_policy_rules"
+                action_input = {
+                    "patient_id": "PAT-001",
+                    "procedure_code": "CPT-99213",
+                    "billed_amount": 150.00,
+                }
+                tool_calls.append(
+                    {
+                        "id": "call_claim_pol",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            elif "submit_claim_adjudication" not in called_tools:
+                action = "submit_claim_adjudication"
+                if "claim-002" in full_user_text:
+                    action_input = {
+                        "claim_id": "CLAIM-002",
+                        "decision": "DENY",
+                        "approved_amount": 0.0,
+                        "rejection_reason": "Duplicate claim detected",
+                    }
+                else:
+                    action_input = {
+                        "claim_id": "CLAIM-001",
+                        "decision": "APPROVE",
+                        "approved_amount": 120.00,
+                    }
+                tool_calls.append(
+                    {
+                        "id": "call_claim_adj",
+                        "type": "function",
+                        "function": {"name": action, "arguments": action_input},
+                    }
+                )
+            else:
+                action = "Final Answer"
+                if "claim-002" in full_user_text:
+                    action_input = (
+                        "Claim CLAIM-002 processed: DENIED due to duplicate submission."
+                    )
+                else:
+                    action_input = "Claim CLAIM-001 processed: APPROVED for $120.00."
+
+        # Scenario: Healthcare Prior-Authorization (Happy and Adverse Flows)
+        elif is_prior_auth:
             is_adverse = any(
                 k in full_user_text
                 for k in [
@@ -226,11 +491,14 @@ class MockLLMProvider(BaseLLMProvider):
                     f"provider notified."
                 )
 
-        # Scenario 1: Fraud Detection
-        elif any(k in full_user_text for k in ["transaction", "fraud"]):
+        # Scenario: Fraud Detection (Fintech)
+        elif is_fraud_detection:
             if "db_query" not in called_tools:
                 action = "db_query"
-                action_input = {"query": "SELECT * FROM transactions"}
+                action_input = {
+                    "sql": "SELECT * FROM transactions",
+                    "query": "SELECT * FROM transactions",
+                }
                 tool_calls.append(
                     {
                         "id": "call_db_1",
@@ -259,8 +527,8 @@ class MockLLMProvider(BaseLLMProvider):
                 action = "Final Answer"
                 action_input = "Industrial analysis complete: SAR filed and verified."
 
-        # Scenario 2: Network Fault
-        elif any(k in full_user_text for k in ["node", "fault"]):
+        # Scenario: Network Fault (Telecom)
+        elif is_network_fault:
             if "iot_read" not in called_tools:
                 action = "iot_read"
                 action_input = {"device_id": "sensor-01"}
@@ -274,195 +542,6 @@ class MockLLMProvider(BaseLLMProvider):
             else:
                 action = "Final Answer"
                 action_input = "Network diagnostic complete: Node is stable."
-
-        # Scenario 4: Auto Insurance Claims Processing
-        elif any(
-            k in full_user_text for k in ["auto claim", "auto claims", "auto insurance"]
-        ):
-            if "get_auto_claim" not in called_tools:
-                action = "get_auto_claim"
-                action_input = {
-                    "claim_id": "AUTO-CLAIM-002"
-                    if "auto-claim-002" in full_user_text
-                    else "AUTO-CLAIM-001"
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_auto_claim_get",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif "detect_suspicious_claim" not in called_tools:
-                action = "detect_suspicious_claim"
-                action_input = {
-                    "policy_id": "POL-102"
-                    if "auto-claim-002" in full_user_text
-                    else "POL-101",
-                    "claim_type": "Theft"
-                    if "auto-claim-002" in full_user_text
-                    else "Collision",
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_auto_claim_susp",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif (
-                "verify_accident_report" not in called_tools
-                and "auto-claim-002" not in full_user_text
-            ):
-                action = "verify_accident_report"
-                action_input = {"claim_id": "AUTO-CLAIM-001"}
-                tool_calls.append(
-                    {
-                        "id": "call_auto_claim_rep",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif (
-                "check_policy_coverage" not in called_tools
-                and "auto-claim-002" not in full_user_text
-            ):
-                action = "check_policy_coverage"
-                action_input = {
-                    "policy_id": "POL-101",
-                    "claim_type": "Collision",
-                    "estimated_cost": 1200.00,
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_auto_claim_cov",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif "submit_auto_adjudication" not in called_tools:
-                action = "submit_auto_adjudication"
-                if "auto-claim-002" in full_user_text:
-                    action_input = {
-                        "claim_id": "AUTO-CLAIM-002",
-                        "decision": "DENIED",
-                        "payout_amount": 0.0,
-                        "comment": "Suspicious claim activity detected",
-                    }
-                else:
-                    action_input = {
-                        "claim_id": "AUTO-CLAIM-001",
-                        "decision": "APPROVED",
-                        "payout_amount": 1200.00,
-                        "comment": "Adjudicated successfully",
-                    }
-                tool_calls.append(
-                    {
-                        "id": "call_auto_claim_adj",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            else:
-                action = "Final Answer"
-                if "auto-claim-002" in full_user_text:
-                    action_input = "Auto claim AUTO-CLAIM-002 processed: DENIED due to suspicion of fraud."
-                else:
-                    action_input = (
-                        "Auto claim AUTO-CLAIM-001 processed: APPROVED for $1200.00."
-                    )
-
-        # Scenario 3: Claims Processing
-        elif any(k in full_user_text for k in ["claim", "claims"]):
-            if "get_claim_status" not in called_tools:
-                action = "get_claim_status"
-                action_input = {
-                    "claim_id": "CLAIM-002"
-                    if "claim-002" in full_user_text
-                    else "CLAIM-001"
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_claim_status",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif "validate_claim_format" not in called_tools:
-                action = "validate_claim_format"
-                action_input = {
-                    "claim_id": "CLAIM-002"
-                    if "claim-002" in full_user_text
-                    else "CLAIM-001"
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_claim_val",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif "check_duplicate_claims" not in called_tools:
-                action = "check_duplicate_claims"
-                action_input = {
-                    "patient_id": "PAT-001",
-                    "procedure_code": "CPT-99213",
-                    "date_of_service": "2026-06-25",
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_claim_dup",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif (
-                "verify_policy_rules" not in called_tools
-                and "claim-002" not in full_user_text
-            ):
-                action = "verify_policy_rules"
-                action_input = {
-                    "patient_id": "PAT-001",
-                    "procedure_code": "CPT-99213",
-                    "billed_amount": 150.00,
-                }
-                tool_calls.append(
-                    {
-                        "id": "call_claim_pol",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            elif "submit_claim_adjudication" not in called_tools:
-                action = "submit_claim_adjudication"
-                if "claim-002" in full_user_text:
-                    action_input = {
-                        "claim_id": "CLAIM-002",
-                        "decision": "DENY",
-                        "approved_amount": 0.0,
-                        "rejection_reason": "Duplicate claim detected",
-                    }
-                else:
-                    action_input = {
-                        "claim_id": "CLAIM-001",
-                        "decision": "APPROVE",
-                        "approved_amount": 120.00,
-                    }
-                tool_calls.append(
-                    {
-                        "id": "call_claim_adj",
-                        "type": "function",
-                        "function": {"name": action, "arguments": action_input},
-                    }
-                )
-            else:
-                action = "Final Answer"
-                if "claim-002" in full_user_text:
-                    action_input = (
-                        "Claim CLAIM-002 processed: DENIED due to duplicate submission."
-                    )
-                else:
-                    action_input = "Claim CLAIM-001 processed: APPROVED for $120.00."
 
         # Format as Markdown JSON block for LangChain parser
         content = f'```json\n{{\n  "action": "{action}",\n  "action_input": {json.dumps(action_input)}\n}}\n```'
