@@ -23,9 +23,7 @@ def get_openapi_spec() -> dict[str, Any]:
                         "200": {
                             "description": "Valid OpenAPI 3.1 schema document",
                             "content": {
-                                "application/json": {
-                                    "schema": {"type": "object"}
-                                }
+                                "application/json": {"schema": {"type": "object"}}
                             },
                         }
                     },
@@ -43,13 +41,25 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "status": {"type": "string", "example": "healthy"},
-                                            "active_llm": {"type": "string", "example": "mock"},
-                                            "active_framework": {"type": "string", "example": "langchain"},
+                                            "status": {
+                                                "type": "string",
+                                                "example": "healthy",
+                                            },
+                                            "active_llm": {
+                                                "type": "string",
+                                                "example": "mock",
+                                            },
+                                            "active_framework": {
+                                                "type": "string",
+                                                "example": "langchain",
+                                            },
                                             "active_vertical": {
                                                 "type": "object",
                                                 "properties": {
-                                                    "name": {"type": "string", "example": "healthcare"},
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "healthcare",
+                                                    },
                                                     "agents": {
                                                         "type": "array",
                                                         "items": {"type": "string"},
@@ -59,10 +69,19 @@ def get_openapi_spec() -> dict[str, Any]:
                                                         "items": {"type": "string"},
                                                     },
                                                 },
-                                                "required": ["name", "agents", "scenarios"],
+                                                "required": [
+                                                    "name",
+                                                    "agents",
+                                                    "scenarios",
+                                                ],
                                             },
                                         },
-                                        "required": ["status", "active_llm", "active_framework", "active_vertical"],
+                                        "required": [
+                                            "status",
+                                            "active_llm",
+                                            "active_framework",
+                                            "active_vertical",
+                                        ],
                                     }
                                 }
                             },
@@ -81,8 +100,14 @@ def get_openapi_spec() -> dict[str, Any]:
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "task_id": {"type": "string", "example": "HC-PA-HAPPY"},
-                                        "agent": {"type": "string", "example": "prior_auth_agent"},
+                                        "task_id": {
+                                            "type": "string",
+                                            "example": "HC-PA-HAPPY",
+                                        },
+                                        "agent": {
+                                            "type": "string",
+                                            "example": "prior_auth_agent",
+                                        },
                                         "input": {
                                             "type": "string",
                                             "example": "Please check and submit prior-authorization for procedure CPT-99213 for patient PAT-001 with decision APPROVE.",
@@ -110,8 +135,14 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "status": {"type": "string", "example": "success"},
-                                            "task_id": {"type": "string", "example": "HC-PA-HAPPY"},
+                                            "status": {
+                                                "type": "string",
+                                                "example": "success",
+                                            },
+                                            "task_id": {
+                                                "type": "string",
+                                                "example": "HC-PA-HAPPY",
+                                            },
                                             "output": {"type": "string"},
                                             "tool_calls": {
                                                 "type": "array",
@@ -133,24 +164,57 @@ def get_openapi_spec() -> dict[str, Any]:
                                                         "items": {
                                                             "type": "object",
                                                             "properties": {
-                                                                "sequence": {"type": "integer"},
-                                                                "kind": {"type": "string"},
-                                                                "tool": {"type": "string"},
-                                                                "arguments": {"type": "object"},
-                                                                "result_summary": {"type": "string"},
+                                                                "sequence": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "kind": {
+                                                                    "type": "string"
+                                                                },
+                                                                "tool": {
+                                                                    "type": "string"
+                                                                },
+                                                                "arguments": {
+                                                                    "type": "object"
+                                                                },
+                                                                "result_summary": {
+                                                                    "type": "string"
+                                                                },
                                                             },
-                                                            "required": ["sequence", "kind", "tool", "arguments", "result_summary"],
+                                                            "required": [
+                                                                "sequence",
+                                                                "kind",
+                                                                "tool",
+                                                                "arguments",
+                                                                "result_summary",
+                                                            ],
                                                         },
                                                     },
-                                                    "started_at": {"type": "string", "format": "date-time"},
-                                                    "completed_at": {"type": "string", "format": "date-time"},
+                                                    "started_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                    },
+                                                    "completed_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                    },
                                                     "status": {"type": "string"},
                                                 },
-                                                "required": ["execution_id", "steps", "started_at", "completed_at", "status"],
+                                                "required": [
+                                                    "execution_id",
+                                                    "steps",
+                                                    "started_at",
+                                                    "completed_at",
+                                                    "status",
+                                                ],
                                             },
                                             "schema_validated": {"type": "boolean"},
                                         },
-                                        "required": ["status", "output", "tool_calls", "schema_validated"],
+                                        "required": [
+                                            "status",
+                                            "output",
+                                            "tool_calls",
+                                            "schema_validated",
+                                        ],
                                     }
                                 }
                             },
@@ -162,7 +226,10 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "status": {"type": "string", "example": "error"},
+                                            "status": {
+                                                "type": "string",
+                                                "example": "error",
+                                            },
                                             "message": {"type": "string"},
                                         },
                                         "required": ["status", "message"],
@@ -184,8 +251,14 @@ def get_openapi_spec() -> dict[str, Any]:
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "vertical": {"type": "string", "example": "healthcare"},
-                                        "framework": {"type": "string", "example": "langchain"},
+                                        "vertical": {
+                                            "type": "string",
+                                            "example": "healthcare",
+                                        },
+                                        "framework": {
+                                            "type": "string",
+                                            "example": "langchain",
+                                        },
                                         "llm": {"type": "string", "example": "mock"},
                                     },
                                 }
@@ -200,7 +273,10 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "status": {"type": "string", "example": "success"},
+                                            "status": {
+                                                "type": "string",
+                                                "example": "success",
+                                            },
                                             "message": {"type": "string"},
                                         },
                                         "required": ["status", "message"],
@@ -226,7 +302,10 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "status": {"type": "string", "example": "reset"},
+                                            "status": {
+                                                "type": "string",
+                                                "example": "reset",
+                                            },
                                             "snapshot": {"type": "object"},
                                         },
                                         "required": ["status", "snapshot"],
@@ -249,7 +328,10 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "observed_at": {"type": "string", "format": "date-time"},
+                                            "observed_at": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                            },
                                             "state": {
                                                 "type": "object",
                                                 "properties": {
@@ -257,12 +339,27 @@ def get_openapi_spec() -> dict[str, Any]:
                                                     "human_reviews": {"type": "array"},
                                                     "outbox": {"type": "array"},
                                                 },
-                                                "required": ["authorizations", "human_reviews", "outbox"],
+                                                "required": [
+                                                    "authorizations",
+                                                    "human_reviews",
+                                                    "outbox",
+                                                ],
                                             },
-                                            "state_hash": {"type": "string", "example": "sha256:..."},
-                                            "receipt_hash": {"type": "string", "example": "sha256:..."},
+                                            "state_hash": {
+                                                "type": "string",
+                                                "example": "sha256:...",
+                                            },
+                                            "receipt_hash": {
+                                                "type": "string",
+                                                "example": "sha256:...",
+                                            },
                                         },
-                                        "required": ["observed_at", "state", "state_hash", "receipt_hash"],
+                                        "required": [
+                                            "observed_at",
+                                            "state",
+                                            "state_hash",
+                                            "receipt_hash",
+                                        ],
                                     }
                                 }
                             },
@@ -297,9 +394,16 @@ def get_openapi_spec() -> dict[str, Any]:
                                             "decision": {"type": "string"},
                                             "decision_source": {"type": "string"},
                                             "criteria_met": {"type": "boolean"},
-                                            "human_review_required": {"type": "boolean"},
-                                            "human_review_id": {"type": ["string", "null"]},
-                                            "committed_at": {"type": "string", "format": "date-time"},
+                                            "human_review_required": {
+                                                "type": "boolean"
+                                            },
+                                            "human_review_id": {
+                                                "type": ["string", "null"]
+                                            },
+                                            "committed_at": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                            },
                                             "notification_status": {"type": "string"},
                                         },
                                         "required": [
@@ -354,9 +458,7 @@ def get_openapi_spec() -> dict[str, Any]:
                                 "application/json": {
                                     "schema": {
                                         "type": "object",
-                                        "properties": {
-                                            "outbox": {"type": "array"}
-                                        },
+                                        "properties": {"outbox": {"type": "array"}},
                                         "required": ["outbox"],
                                     }
                                 }
@@ -376,15 +478,36 @@ def get_openapi_spec() -> dict[str, Any]:
                                 "schema": {
                                     "type": "object",
                                     "properties": {
-                                        "patient_id": {"type": "string", "example": "PAT-002"},
-                                        "procedure_code": {"type": "string", "example": "CPT-33510"},
-                                        "reviewer_id": {"type": "string", "example": "MD-LIC-4491"},
-                                        "reviewer_type": {"type": "string", "example": "LICENSED_PHYSICIAN"},
-                                        "disposition": {"type": "string", "example": "DENY"},
+                                        "patient_id": {
+                                            "type": "string",
+                                            "example": "PAT-002",
+                                        },
+                                        "procedure_code": {
+                                            "type": "string",
+                                            "example": "CPT-33510",
+                                        },
+                                        "reviewer_id": {
+                                            "type": "string",
+                                            "example": "MD-LIC-4491",
+                                        },
+                                        "reviewer_type": {
+                                            "type": "string",
+                                            "example": "LICENSED_PHYSICIAN",
+                                        },
+                                        "disposition": {
+                                            "type": "string",
+                                            "example": "DENY",
+                                        },
                                         "clinical_notes": {"type": "string"},
                                         "review_id": {"type": "string"},
                                     },
-                                    "required": ["patient_id", "procedure_code", "reviewer_id", "reviewer_type", "disposition"],
+                                    "required": [
+                                        "patient_id",
+                                        "procedure_code",
+                                        "reviewer_id",
+                                        "reviewer_type",
+                                        "disposition",
+                                    ],
                                 }
                             }
                         },
@@ -397,7 +520,10 @@ def get_openapi_spec() -> dict[str, Any]:
                                     "schema": {
                                         "type": "object",
                                         "properties": {
-                                            "status": {"type": "string", "example": "recorded"},
+                                            "status": {
+                                                "type": "string",
+                                                "example": "recorded",
+                                            },
                                             "review": {"type": "object"},
                                         },
                                         "required": ["status", "review"],

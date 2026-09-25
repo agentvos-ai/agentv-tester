@@ -128,15 +128,15 @@ class BaseMCPAgent(BaseAgent):
 
         mcp_tool_wrapper.__name__ = tool_name
         mcp_tool_wrapper.input_schema = input_schema
-        mcp_tool_wrapper.args_schema = _schema_to_pydantic_model(tool_name, input_schema)
+        mcp_tool_wrapper.args_schema = _schema_to_pydantic_model(
+            tool_name, input_schema
+        )
         if input_schema and "properties" in input_schema:
             try:
                 params = []
                 required = set(input_schema.get("required", []))
                 for prop_name in input_schema["properties"]:
-                    default = (
-                        inspect.Parameter.empty if prop_name in required else None
-                    )
+                    default = inspect.Parameter.empty if prop_name in required else None
                     param = inspect.Parameter(
                         prop_name,
                         inspect.Parameter.POSITIONAL_OR_KEYWORD,

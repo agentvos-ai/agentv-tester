@@ -9,11 +9,7 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 from mcp_servers.healthcare_mcp.server import (
-    check_criteria_met,
-    get_patient_diagnosis_codes,
-    get_payer_policy,
     record_human_review,
-    request_human_review,
     send_provider_notification,
     submit_authorization_decision,
 )

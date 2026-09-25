@@ -244,7 +244,8 @@ def request_human_review(
         "request_id": req_id,
         "patient_id": patient_id,
         "procedure_code": procedure_code.upper(),
-        "reason": reason or "Clinical criteria not satisfied; physician adjudication required.",
+        "reason": reason
+        or "Clinical criteria not satisfied; physician adjudication required.",
     }
 
 
@@ -330,7 +331,9 @@ def submit_authorization_decision(
             criteria_met=criteria_met,
         )
         auth_id = record["authorization_id"]
-        logger.info(f"Prior-auth {auth_id} committed to durable state for {patient_id}: {decision}")
+        logger.info(
+            f"Prior-auth {auth_id} committed to durable state for {patient_id}: {decision}"
+        )
         return {
             "auth_id": auth_id,
             "status": "completed" if clean_decision == "APPROVE" else "denied",
@@ -366,7 +369,9 @@ def send_provider_notification(
             "destination": notif["destination"],
         }
     except Exception as e:
-        logger.error(f"Failed to send provider notification for {authorization_id}: {e}")
+        logger.error(
+            f"Failed to send provider notification for {authorization_id}: {e}"
+        )
         return {"status": "failed", "error": str(e)}
 
 

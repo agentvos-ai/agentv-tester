@@ -54,9 +54,15 @@ class MockLLMProvider(BaseLLMProvider):
                         pass
             for line in content.splitlines():
                 stripped = line.strip()
-                if stripped.startswith("Action:") and not stripped.startswith("Action: Final Answer"):
+                if stripped.startswith("Action:") and not stripped.startswith(
+                    "Action: Final Answer"
+                ):
                     act_val = stripped.split("Action:", 1)[1].strip().strip("`")
-                    if act_val and not act_val.startswith("{") and act_val not in ("Final Answer", "final answer"):
+                    if (
+                        act_val
+                        and not act_val.startswith("{")
+                        and act_val not in ("Final Answer", "final answer")
+                    ):
                         called_tools.append(act_val)
 
         tool_calls = []
@@ -94,7 +100,14 @@ class MockLLMProvider(BaseLLMProvider):
         if is_prior_auth:
             is_adverse = any(
                 k in full_user_text
-                for k in ["pat-002", "cpt-33510", "hc-pa-fault", "deny", "denial", "adverse"]
+                for k in [
+                    "pat-002",
+                    "cpt-33510",
+                    "hc-pa-fault",
+                    "deny",
+                    "denial",
+                    "adverse",
+                ]
             )
             patient_id = "PAT-002" if is_adverse else "PAT-001"
             procedure_code = "CPT-33510" if is_adverse else "CPT-99213"

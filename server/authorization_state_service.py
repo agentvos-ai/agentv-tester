@@ -190,7 +190,9 @@ class AuthorizationStateService:
         are not met require licensed human review before committing.
         """
         clean_decision = decision.upper().strip()
-        is_adverse = clean_decision in ("DENY", "DELAY", "DOWNGRADE") or not criteria_met
+        is_adverse = (
+            clean_decision in ("DENY", "DELAY", "DOWNGRADE") or not criteria_met
+        )
 
         if is_adverse:
             review = None
@@ -285,7 +287,9 @@ class AuthorizationStateService:
         """Record notification in durable outbox and optionally dispatch via SMTP."""
         auth = self.get_authorization(authorization_id)
         if not auth:
-            raise ValueError(f"Authorization {authorization_id} not found in durable ledger.")
+            raise ValueError(
+                f"Authorization {authorization_id} not found in durable ledger."
+            )
 
         notification_id = f"NOTIF-{uuid.uuid4().hex[:8].upper()}"
         created_at = datetime.now(UTC).isoformat()
@@ -399,8 +403,7 @@ def create_authorization_state_blueprint(
         snap = service.snapshot()
         receipt_data = {"observed_at": observed_at, **snap}
         receipt_hash = (
-            "sha256:"
-            + hashlib.sha256(canonical_json_bytes(receipt_data)).hexdigest()
+            "sha256:" + hashlib.sha256(canonical_json_bytes(receipt_data)).hexdigest()
         )
         receipt_data["receipt_hash"] = receipt_hash
         return jsonify(receipt_data), 200
@@ -410,7 +413,9 @@ def create_authorization_state_blueprint(
     def get_authorization(authorization_id: str):
         record = service.get_authorization(authorization_id)
         if not record:
-            return jsonify({"error": f"Authorization '{authorization_id}' not found"}), 404
+            return jsonify(
+                {"error": f"Authorization '{authorization_id}' not found"}
+            ), 404
         return jsonify(record), 200
 
     @bp.get("/authorizations")
@@ -425,10 +430,18 @@ def create_authorization_state_blueprint(
     @bp.post("/reviews")
     def record_review():
         payload = request.get_json(force=True) or {}
-        required = ["patient_id", "procedure_code", "reviewer_id", "reviewer_type", "disposition"]
+        required = [
+            "patient_id",
+            "procedure_code",
+            "reviewer_id",
+            "reviewer_type",
+            "disposition",
+        ]
         missing = [f for f in required if f not in payload]
         if missing:
-            return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+            return jsonify(
+                {"error": f"Missing required fields: {', '.join(missing)}"}
+            ), 400
 
         review = service.record_human_review(
             patient_id=payload["patient_id"],

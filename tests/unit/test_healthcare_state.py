@@ -7,7 +7,6 @@ from server.app import create_app
 from server.authorization_state_service import (
     AuthorizationStateService,
     HealthcareStateService,
-    canonical_json_bytes,
 )
 
 
@@ -84,7 +83,9 @@ class TestHealthcareStateService(unittest.TestCase):
                 decision="DENY",
                 criteria_met=False,
             )
-        self.assertIn("licensed human review artifact required", str(ctx.exception).lower())
+        self.assertIn(
+            "licensed human review artifact required", str(ctx.exception).lower()
+        )
 
         # Now record valid human review
         review = self.service.record_human_review(
