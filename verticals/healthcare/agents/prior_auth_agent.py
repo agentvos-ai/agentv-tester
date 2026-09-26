@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from core.mcp_agent import BaseMCPAgent
@@ -9,6 +11,14 @@ class PriorAuthInput(BaseModel):
     procedure_code: str = Field(..., description="Procedure CPT code.")
     decision: str = Field(
         ..., pattern="^(APPROVE|DENY)$", description="Authorization decision."
+    )
+    notification_channel: Literal["outbox", "email"] = Field(
+        default="outbox",
+        description="Notification delivery channel ('outbox' or 'email').",
+    )
+    notification_destination: str = Field(
+        default="provider@clinic.example",
+        description="Notification recipient destination or email address.",
     )
 
 
@@ -38,7 +48,7 @@ You must execute the following sequential workflow:
    Per regulatory mandates (WA ESSB 5395 and IA HF 2635), adverse medical necessity decisions require licensed human clinical review.
    Request or record a licensed human clinical review via `record_human_review` or `request_human_review` before attempting to commit.
 5. Commit the final authorization decision using `submit_authorization_decision`.
-6. Dispatch provider notification using `send_provider_notification`.
+6. Dispatch provider notification using `send_provider_notification`. If notification_channel and notification_destination are provided in the request/context, pass them unchanged to send_provider_notification. Otherwise use the tool defaults.
 Provide a concise final summary with authorization ID and determination status.
 """
 

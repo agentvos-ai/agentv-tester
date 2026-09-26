@@ -1,7 +1,10 @@
 import os
+import re
+import smtplib
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Ensure project root is in sys.path
 root_dir = Path(__file__).resolve().parent.parent.parent
@@ -114,6 +117,8 @@ class TestHealthcareIntegration(unittest.TestCase):
         self.assertEqual(len(outbox), 1)
         self.assertEqual(outbox[0]["authorization_id"], auth["authorization_id"])
         self.assertEqual(outbox[0]["status"], "SENT")
+        self.assertEqual(outbox[0]["channel"], "outbox")
+        self.assertEqual(outbox[0]["destination"], "provider@clinic.example")
 
     def test_prior_auth_adverse_flow_langchain(self):
         """
@@ -260,6 +265,256 @@ class TestHealthcareIntegration(unittest.TestCase):
         )
         self.assertEqual(notif_res["status"], "completed")
         self.assertEqual(notif_res["delivery_status"], "SENT")
+
+    def test_deterministic_1_default_path_remains_unchanged(self):
+        """
+        Deterministic Test 1: Verify default path remains unchanged when no notification fields supplied.
+        - no notification fields supplied in request context;
+        - tool call uses 'outbox' and 'provider@clinic.example';
+        - existing healthcare tests continue to pass.
+        """
+        self.client.post(
+            "/update_config",
+            json={"framework": "langchain", "llm": "mock", "vertical": "healthcare"},
+        )
+
+        payload = {
+            "task_id": "TEST-DEFAULT-NOTIF",
+            "agent": "prior_auth_agent",
+            "input": "Evaluate PAT-001 / CPT-99213 prior-authorization request.",
+            "context": {
+                "patient_id": "PAT-001",
+                "procedure_code": "CPT-99213",
+                "decision": "APPROVE",
+            },
+        }
+
+        response = self.client.post("/execute_task", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data["status"], "success")
+
+        receipt = data.get("execution_receipt")
+        self.assertIsNotNone(receipt)
+        notif_step = next(
+            s for s in receipt["steps"] if s["tool"] == "send_provider_notification"
+        )
+        self.assertEqual(notif_step["arguments"].get("channel"), "outbox")
+        self.assertEqual(
+            notif_step["arguments"].get("destination"), "provider@clinic.example"
+        )
+
+        state_resp = self.client.get("/healthcare/state")
+        self.assertEqual(state_resp.status_code, 200)
+        state_data = state_resp.get_json()["state"]
+        outbox = state_data["outbox"]
+        self.assertEqual(len(outbox), 1)
+        self.assertEqual(outbox[0]["channel"], "outbox")
+        self.assertEqual(outbox[0]["destination"], "provider@clinic.example")
+        self.assertEqual(outbox[0]["status"], "SENT")
+
+    def test_deterministic_2_email_arguments_propagate(self):
+        """
+        Deterministic Test 2: Verify email arguments propagate from request context to tool.
+        - request context contains notification_channel=email;
+        - destination contains a synthetic test address;
+        - send_provider_notification receives those exact values.
+        """
+        self.client.post(
+            "/update_config",
+            json={"framework": "langchain", "llm": "mock", "vertical": "healthcare"},
+        )
+
+        synthetic_dest = "demo-recipient@example.com"
+        payload = {
+            "task_id": "DEMO-UM-EMAIL",
+            "agent": "prior_auth_agent",
+            "input": "Evaluate PAT-002 / CPT-33510 and complete the required prior-authorization workflow.",
+            "context": {
+                "patient_id": "PAT-002",
+                "procedure_code": "CPT-33510",
+                "decision": "APPROVE",
+                "notification_channel": "email",
+                "notification_destination": synthetic_dest,
+            },
+        }
+
+        response = self.client.post("/execute_task", json=payload)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.get_json()
+        self.assertEqual(data["status"], "success")
+
+        # Verify execution receipt specifies the business channel and destination
+        receipt = data.get("execution_receipt")
+        self.assertIsNotNone(receipt)
+        notif_step = next(
+            s for s in receipt["steps"] if s["tool"] == "send_provider_notification"
+        )
+        self.assertEqual(notif_step["arguments"].get("channel"), "email")
+        self.assertEqual(notif_step["arguments"].get("destination"), synthetic_dest)
+
+        # Verify durable state authority records notification in outbox with requested channel and destination
+        state_resp = self.client.get("/healthcare/state")
+        self.assertEqual(state_resp.status_code, 200)
+        state_data = state_resp.get_json()["state"]
+        outbox = state_data["outbox"]
+        self.assertEqual(len(outbox), 1)
+        self.assertEqual(outbox[0]["channel"], "email")
+        self.assertEqual(outbox[0]["destination"], synthetic_dest)
+
+    @patch("smtplib.SMTP")
+    def test_deterministic_3_smtp_success(self, mock_smtp_cls):
+        """
+        Deterministic Test 3: Verify SMTP success path.
+        - monkeypatch smtplib.SMTP;
+        - verify send_message is called;
+        - durable outbox row is channel=email, expected destination, status=SENT.
+        """
+        mock_server = MagicMock()
+        mock_smtp_cls.return_value.__enter__.return_value = mock_server
+
+        dest = "dr.smith@clinic.example"
+        with patch.dict(
+            os.environ, {"SMTP_HOST": "smtp.test.example", "SMTP_PORT": "587"}
+        ):
+            auth_res = submit_authorization_decision(
+                patient_id="PAT-001",
+                procedure_code="CPT-99213",
+                decision="APPROVE",
+            )
+            self.assertEqual(auth_res["status"], "completed")
+            self.assertEqual(auth_res["record"]["decision"], "APPROVE")
+            auth_id = auth_res["record"]["authorization_id"]
+
+            notif_res = send_provider_notification(
+                authorization_id=auth_id,
+                channel="email",
+                destination=dest,
+                message="Your authorization request CPT-99213 has been approved.",
+            )
+            self.assertEqual(notif_res["status"], "completed")
+            self.assertEqual(notif_res["delivery_status"], "SENT")
+            self.assertEqual(notif_res["channel"], "email")
+            self.assertEqual(notif_res["destination"], dest)
+
+            # Verify smtplib.SMTP interactions
+            mock_smtp_cls.assert_called_with("smtp.test.example", 587, timeout=5)
+            self.assertTrue(mock_server.send_message.called)
+            sent_msg = mock_server.send_message.call_args[0][0]
+            self.assertEqual(sent_msg["To"], dest)
+            self.assertEqual(
+                sent_msg["Subject"], f"Prior Authorization Update: {auth_id}"
+            )
+
+            # Verify durable state ledger outbox and authorization notification_status
+            state_resp = self.client.get("/healthcare/state")
+            self.assertEqual(state_resp.status_code, 200)
+            state_data = state_resp.get_json()["state"]
+
+            outbox = state_data["outbox"]
+            self.assertEqual(len(outbox), 1)
+            self.assertEqual(outbox[0]["channel"], "email")
+            self.assertEqual(outbox[0]["destination"], dest)
+            self.assertEqual(outbox[0]["status"], "SENT")
+
+            auth = next(
+                a
+                for a in state_data["authorizations"]
+                if a["authorization_id"] == auth_id
+            )
+            self.assertEqual(auth["notification_status"], "SENT")
+
+    @patch("smtplib.SMTP")
+    def test_deterministic_4_smtp_failure(self, mock_smtp_cls):
+        """
+        Deterministic Test 4: Verify SMTP failure path.
+        - monkeypatch SMTP to raise;
+        - durable outbox row records status=FAILED;
+        - authorization notification_status=FAILED.
+        """
+        mock_smtp_cls.side_effect = smtplib.SMTPConnectError(421, b"Connection refused")
+
+        dest = "dr.jones@hospital.example"
+        with patch.dict(os.environ, {"SMTP_HOST": "smtp.failing.example"}):
+            auth_res = submit_authorization_decision(
+                patient_id="PAT-001",
+                procedure_code="CPT-99213",
+                decision="APPROVE",
+            )
+            auth_id = auth_res["record"]["authorization_id"]
+
+            notif_res = send_provider_notification(
+                authorization_id=auth_id,
+                channel="email",
+                destination=dest,
+                message="Prior-authorization status update.",
+            )
+            self.assertEqual(notif_res["status"], "completed")
+            self.assertEqual(notif_res["delivery_status"], "FAILED")
+
+            # Verify durable state ledger records FAILED status
+            state_resp = self.client.get("/healthcare/state")
+            self.assertEqual(state_resp.status_code, 200)
+            state_data = state_resp.get_json()["state"]
+
+            outbox = state_data["outbox"]
+            self.assertEqual(len(outbox), 1)
+            self.assertEqual(outbox[0]["channel"], "email")
+            self.assertEqual(outbox[0]["destination"], dest)
+            self.assertEqual(outbox[0]["status"], "FAILED")
+
+            auth = next(
+                a
+                for a in state_data["authorizations"]
+                if a["authorization_id"] == auth_id
+            )
+            self.assertEqual(auth["notification_status"], "FAILED")
+
+    def test_deterministic_5_no_evaluator_coupling(self):
+        """
+        Deterministic Test 5: Verify no evaluator coupling.
+        - static test/grep rejects imports or references to agentv_runtime,
+          harness certificates, or AgentV cryptography from Tester application code.
+        """
+        app_dirs = [
+            "core",
+            "verticals",
+            "server",
+            "mcp_servers",
+            "llm_providers",
+            "frameworks",
+        ]
+        forbidden_patterns = [
+            (r"\bagentv_runtime\b", "agentv_runtime import/reference"),
+            (r"\bAgentVCertificate\b", "AgentV harness certificate reference"),
+            (
+                r"\bSignatureVerifier\b",
+                "AgentV cryptographic signature verifier reference",
+            ),
+            (r"\bharness_certificate\b", "harness certificate reference"),
+            (r"\bevaluator_flag\b", "evaluator flag reference"),
+        ]
+
+        violations = []
+        for app_dir in app_dirs:
+            dir_path = root_dir / app_dir
+            if not dir_path.exists():
+                continue
+            for py_file in dir_path.rglob("*.py"):
+                text = py_file.read_text(encoding="utf-8")
+                for pat, label in forbidden_patterns:
+                    matches = re.findall(pat, text, re.IGNORECASE)
+                    if matches:
+                        violations.append(
+                            f"{py_file.relative_to(root_dir)}: found {label} ({matches})"
+                        )
+
+        self.assertEqual(
+            violations,
+            [],
+            f"Evaluator coupling violations detected in application code: {violations}",
+        )
 
 
 if __name__ == "__main__":

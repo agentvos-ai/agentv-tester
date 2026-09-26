@@ -159,7 +159,14 @@ submit_authorization_decision(patient_id, procedure_code, decision) -> {auth_id,
 send_provider_notification(authorization_id, channel, destination, message) -> {notification_id, delivery_status, status}
 ```
 
-**Happy path:** Criteria met for procedure (e.g. PAT-001 / CPT-99213) -> AI commits APPROVE -> Dispatches provider notification.
+**Business inputs (`PriorAuthInput`):**
+- `patient_id: str`
+- `procedure_code: str`
+- `decision: str`
+- `notification_channel: Literal["outbox", "email"] = "outbox"` (default: `"outbox"`)
+- `notification_destination: str = "provider@clinic.example"` (default: `"provider@clinic.example"`)
+
+**Happy path:** Criteria met for procedure (e.g. PAT-001 / CPT-99213) -> AI commits APPROVE -> Dispatches provider notification to configured channel/destination (or default outbox).
 
 **Regulatory compliance & fault-injection scenarios:**
 - Adverse decision (`DENY`, `DELAY`, `DOWNGRADE`) or unmet criteria attempted without licensed clinical peer review -> blocked by MCP commit tool with `human_review_required: true`.

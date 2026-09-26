@@ -57,7 +57,10 @@ class ComplianceShim(BaseShim):
     def shutdown(self) -> None:
         """Cleanup the database file."""
         if os.path.exists(self.db_path):
-            os.remove(self.db_path)
+            try:
+                os.remove(self.db_path)
+            except (PermissionError, OSError):
+                pass
 
     def reset(self) -> None:
         """Deterministic reset of the compliance state."""

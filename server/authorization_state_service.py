@@ -50,7 +50,7 @@ class AuthorizationStateService:
 
     @contextlib.contextmanager
     def get_connection(self):
-        conn = sqlite3.connect(str(self.db_path))
+        conn = sqlite3.connect(str(self.db_path), timeout=30.0)
         conn.row_factory = sqlite3.Row
         try:
             yield conn
@@ -60,6 +60,8 @@ class AuthorizationStateService:
 
     def init_db(self) -> None:
         with self.get_connection() as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA busy_timeout = 30000")
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS authorizations (

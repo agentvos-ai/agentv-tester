@@ -28,9 +28,20 @@ class MockLLMProvider(BaseLLMProvider):
     ) -> dict[str, Any]:
         # Collect all user messages to determine active scenario
         user_contents = []
+        initial_task_text = ""
         for m in messages:
-            if m.get("role") == "user":
-                user_contents.append(m.get("content", "").lower())
+            if m.get("role") in ("user", "human"):
+                c = str(m.get("content", ""))
+                user_contents.append(c.lower())
+                if not initial_task_text:
+                    if "TASK:" in c:
+                        initial_task_text = (
+                            c.split("TASK:", 1)[1].split("Observation:", 1)[0].lower()
+                        )
+                    else:
+                        initial_task_text = (
+                            c.split("Observation:", 1)[0].split("Action:", 1)[0].lower()
+                        )
         full_user_text = " ".join(user_contents)
 
         # Build history of called tools
@@ -271,12 +282,13 @@ class MockLLMProvider(BaseLLMProvider):
 
         # Scenario: Claims Processing
         elif is_claims_processing:
+            is_claim_002 = (
+                "claim-002" in initial_task_text or "hc-cp-fault" in full_user_text
+            )
             if "get_claim_status" not in called_tools:
                 action = "get_claim_status"
                 action_input = {
-                    "claim_id": "CLAIM-002"
-                    if "claim-002" in full_user_text
-                    else "CLAIM-001"
+                    "claim_id": "CLAIM-002" if is_claim_002 else "CLAIM-001"
                 }
                 tool_calls.append(
                     {
@@ -288,9 +300,7 @@ class MockLLMProvider(BaseLLMProvider):
             elif "validate_claim_format" not in called_tools:
                 action = "validate_claim_format"
                 action_input = {
-                    "claim_id": "CLAIM-002"
-                    if "claim-002" in full_user_text
-                    else "CLAIM-001"
+                    "claim_id": "CLAIM-002" if is_claim_002 else "CLAIM-001"
                 }
                 tool_calls.append(
                     {
@@ -313,10 +323,7 @@ class MockLLMProvider(BaseLLMProvider):
                         "function": {"name": action, "arguments": action_input},
                     }
                 )
-            elif (
-                "verify_policy_rules" not in called_tools
-                and "claim-002" not in full_user_text
-            ):
+            elif "verify_policy_rules" not in called_tools and not is_claim_002:
                 action = "verify_policy_rules"
                 action_input = {
                     "patient_id": "PAT-001",
@@ -332,7 +339,7 @@ class MockLLMProvider(BaseLLMProvider):
                 )
             elif "submit_claim_adjudication" not in called_tools:
                 action = "submit_claim_adjudication"
-                if "claim-002" in full_user_text:
+                if is_claim_002:
                     action_input = {
                         "claim_id": "CLAIM-002",
                         "decision": "DENY",
@@ -354,7 +361,7 @@ class MockLLMProvider(BaseLLMProvider):
                 )
             else:
                 action = "Final Answer"
-                if "claim-002" in full_user_text:
+                if is_claim_002:
                     action_input = (
                         "Claim CLAIM-002 processed: DENIED due to duplicate submission."
                     )
@@ -385,6 +392,36 @@ class MockLLMProvider(BaseLLMProvider):
                 if match:
                     auth_id = match.group(0)
                     break
+
+            # Parse notification_channel and notification_destination from user request/context
+            notif_channel = "outbox"
+            notif_dest = "provider@clinic.example"
+            for m in messages:
+                if m.get("role") in ("user", "human"):
+                    c = str(m.get("content", ""))
+                    m_chan = re.search(
+                        r'(?:notification_channel|channel)["\']?\s*[:=]\s*["\']?(email|outbox)["\']?',
+                        c,
+                        re.IGNORECASE,
+                    )
+                    if m_chan:
+                        notif_channel = m_chan.group(1).lower()
+
+                    m_dest = re.search(
+                        r'(?:notification_destination|destination)["\']?\s*[:=]\s*["\']?([^"\'\s,\n\r]+@[^"\'\s,\n\r]+)["\']?',
+                        c,
+                        re.IGNORECASE,
+                    )
+                    if not m_dest:
+                        m_dest = re.search(
+                            r'notification_destination["\']?\s*[:=]\s*["\']?([^"\'\s,\n\r]+)["\']?',
+                            c,
+                            re.IGNORECASE,
+                        )
+                    if m_dest:
+                        extracted_dest = m_dest.group(1).strip()
+                        if extracted_dest and not extracted_dest.startswith("{"):
+                            notif_dest = extracted_dest
 
             if "get_patient_diagnosis_codes" not in called_tools:
                 action = "get_patient_diagnosis_codes"
@@ -468,8 +505,8 @@ class MockLLMProvider(BaseLLMProvider):
                 action = "send_provider_notification"
                 action_input = {
                     "authorization_id": auth_id,
-                    "channel": "outbox",
-                    "destination": "provider@clinic.example",
+                    "channel": notif_channel,
+                    "destination": notif_dest,
                     "message": (
                         f"Prior authorization {procedure_code} DENIED following physician review."
                         if is_adverse
