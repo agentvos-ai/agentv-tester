@@ -351,7 +351,7 @@ def send_provider_notification(
     destination: str = "provider@clinic.example",
     message: str = "",
 ) -> dict:
-    """Send an authorization notification to the provider via durable outbox or SMTP."""
+    """Send an authorization notification via durable outbox or configured SMTP."""
     service = get_state_service()
     try:
         notif = service.send_provider_notification(
@@ -367,6 +367,9 @@ def send_provider_notification(
             "delivery_status": notif["status"],
             "channel": notif["channel"],
             "destination": notif["destination"],
+            "delivery_attempted": notif["delivery_attempted"],
+            "transport": notif["transport"],
+            "delivery_receipt": notif["delivery_receipt"],
         }
     except Exception as e:
         logger.error(

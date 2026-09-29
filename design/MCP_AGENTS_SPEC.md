@@ -146,7 +146,7 @@ place_medication_order(patient_id, drug, dosage, pharmacy_id) -> {order_id, stat
 
 ### 4.4 Healthcare — Prior-Authorization Agent
 **Framework:** AutoGen / LangChain / LangGraph
-**Purpose:** Evaluates clinical prior-authorization requests against payer criteria, enforces licensed human peer review on adverse decisions per WA ESSB 5395 and IA HF 2635, and dispatches provider notifications to a durable outbox.
+**Purpose:** Evaluates clinical prior-authorization requests against payer criteria, enforces licensed human peer review on adverse decisions through a control pattern aligned to enacted/current-and-upcoming requirements (including WA ESSB 5395 and IA HF 2635), and dispatches provider notifications to a durable outbox. The synthetic demo does not establish legal compliance.
 
 **MCP tools (`healthcare-mcp`):**
 ```
@@ -155,7 +155,7 @@ get_payer_policy(procedure_code) -> {procedure_code, criteria}
 check_criteria_met(patient_id, procedure_code) -> {met, missing}
 request_human_review(patient_id, procedure_code, reason) -> {status, request_id}
 record_human_review(patient_id, procedure_code, reviewer_id, reviewer_type, disposition, clinical_notes) -> {review_id, status}
-submit_authorization_decision(patient_id, procedure_code, decision) -> {auth_id, status, record}   ← commit (persists to durable SQLite authority; enforces WA ESSB 5395 & IA HF 2635)
+submit_authorization_decision(patient_id, procedure_code, decision) -> {auth_id, status, record}   ← commit (persists to durable SQLite authority; applies the adverse-decision human-review control)
 send_provider_notification(authorization_id, channel, destination, message) -> {notification_id, delivery_status, status}
 ```
 

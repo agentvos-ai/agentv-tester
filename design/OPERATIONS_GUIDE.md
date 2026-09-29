@@ -219,7 +219,7 @@ The authorization state authority operates independently via SQLite ledger with 
   ```
 
 ### 5.5 Regulatory Medical Necessity Adjudication
-Under **Washington ESSB 5395** and **Iowa HF 2635**, artificial intelligence agents may not unilaterally commit adverse determinations (e.g. `DENY`, `DELAY`, `DOWNGRADE`) or determinations where clinical criteria are unmet. The healthcare MCP server enforces that an adverse determination cannot commit to the durable state authority without a licensed physician review artifact recorded via `record_human_review`. Notifications must be dispatched to the durable outbox following adjudication.
+The synthetic healthcare demo uses an adverse-decision control pattern aligned to enacted, current, and upcoming requirements, including Washington ESSB 5395 and Iowa HF 2635. It does not establish legal compliance. The healthcare MCP server prevents an adverse determination (e.g. `DENY`, `DELAY`, `DOWNGRADE`) or one with unmet clinical criteria from committing without a licensed physician review artifact recorded via `record_human_review`. Notifications are recorded durably following adjudication; requested `email` delivery is marked `SENT` only after successful SMTP submission, and is `NOT_CONFIGURED` when SMTP is absent.
 
 ## 6. Interactive Evaluation UI
 

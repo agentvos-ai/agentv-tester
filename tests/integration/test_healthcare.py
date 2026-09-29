@@ -362,6 +362,9 @@ class TestHealthcareIntegration(unittest.TestCase):
         self.assertEqual(len(outbox), 1)
         self.assertEqual(outbox[0]["channel"], "email")
         self.assertEqual(outbox[0]["destination"], synthetic_dest)
+        self.assertEqual(outbox[0]["status"], "NOT_CONFIGURED")
+        self.assertFalse(outbox[0]["delivery_attempted"])
+        self.assertIsNone(outbox[0]["sent_at"])
 
     @patch("smtplib.SMTP")
     def test_deterministic_3_smtp_success(self, mock_smtp_cls):
@@ -417,6 +420,10 @@ class TestHealthcareIntegration(unittest.TestCase):
             self.assertEqual(outbox[0]["channel"], "email")
             self.assertEqual(outbox[0]["destination"], dest)
             self.assertEqual(outbox[0]["status"], "SENT")
+            self.assertTrue(outbox[0]["delivery_attempted"])
+            self.assertEqual(outbox[0]["transport"], "smtp")
+            self.assertEqual(outbox[0]["delivery_receipt"], "accepted_by_smtp")
+            self.assertIsNotNone(outbox[0]["sent_at"])
 
             auth = next(
                 a
@@ -463,6 +470,8 @@ class TestHealthcareIntegration(unittest.TestCase):
             self.assertEqual(outbox[0]["channel"], "email")
             self.assertEqual(outbox[0]["destination"], dest)
             self.assertEqual(outbox[0]["status"], "FAILED")
+            self.assertTrue(outbox[0]["delivery_attempted"])
+            self.assertIsNone(outbox[0]["sent_at"])
 
             auth = next(
                 a

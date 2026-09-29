@@ -136,6 +136,37 @@ class TestHealthcareStateService(unittest.TestCase):
         outbox = self.service.list_outbox()
         self.assertEqual(len(outbox), 1)
         self.assertEqual(outbox[0]["notification_id"], notif["notification_id"])
+        self.assertTrue(notif["delivery_attempted"])
+        self.assertEqual(notif["transport"], "outbox")
+        self.assertIsNotNone(notif["sent_at"])
+
+    def test_email_without_smtp_fails_closed(self):
+        auth = self.service.commit_authorization(
+            patient_id="PAT-001",
+            procedure_code="CPT-99213",
+            decision="APPROVE",
+            criteria_met=True,
+        )
+        previous_host = os.environ.pop("SMTP_HOST", None)
+        try:
+            notif = self.service.send_provider_notification(
+                authorization_id=auth["authorization_id"], channel="email"
+            )
+        finally:
+            if previous_host is not None:
+                os.environ["SMTP_HOST"] = previous_host
+
+        self.assertEqual(notif["status"], "NOT_CONFIGURED")
+        self.assertFalse(notif["delivery_attempted"])
+        self.assertEqual(notif["transport"], "smtp")
+        self.assertIsNone(notif["sent_at"])
+        self.assertIsNone(notif["delivery_receipt"])
+        self.assertEqual(
+            self.service.get_authorization(auth["authorization_id"])[
+                "notification_status"
+            ],
+            "NOT_CONFIGURED",
+        )
 
 
 class TestHealthcareEndpoints(unittest.TestCase):

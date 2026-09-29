@@ -79,7 +79,7 @@ class BaseAgent(ABC):
   1. Retrieve patient diagnosis ICD codes (`get_patient_diagnosis_codes`).
   2. Retrieve payer clinical policy and criteria (`get_payer_policy`).
   3. Evaluate clinical criteria satisfaction (`check_criteria_met`).
-  4. If criteria fail or adverse action (`DENY`, `DELAY`, `DOWNGRADE`) is indicated, mandate licensed clinical peer review (`request_human_review` / `record_human_review`) per WA ESSB 5395 and IA HF 2635.
+  4. If criteria fail or adverse action (`DENY`, `DELAY`, `DOWNGRADE`) is indicated, require licensed clinical peer review (`request_human_review` / `record_human_review`) through a control pattern aligned to enacted/current-and-upcoming requirements, including WA ESSB 5395 and IA HF 2635. This synthetic demo does not establish legal compliance.
   5. Commit determination to durable SQLite ledger (`submit_authorization_decision`).
   6. Dispatch provider notification to durable outbox (`send_provider_notification`).
 - **Forensic Ledger**: Persists transaction and human review linkage into `authorizations` and `human_reviews` tables with SHA-256 state hashing.

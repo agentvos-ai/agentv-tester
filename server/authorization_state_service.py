@@ -1,7 +1,7 @@
 """Durable authorization and provider notification state service.
 
 Maintains an isolated, durable SQLite ledger for domain authorization decisions,
-licensed human review artifacts (enforcing regulatory mandates such as WA ESSB 5395 and IA HF 2635),
+licensed human review artifacts aligned to enacted and upcoming control requirements,
 and provider notification outbox records.
 """
 
@@ -102,10 +102,27 @@ class AuthorizationStateService:
                     message TEXT NOT NULL,
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
-                    sent_at TEXT
+                    sent_at TEXT,
+                    delivery_attempted INTEGER NOT NULL DEFAULT 0,
+                    transport TEXT NOT NULL DEFAULT 'outbox',
+                    delivery_receipt TEXT
                 )
                 """
             )
+            # Existing demo ledgers predate delivery-evidence columns.  Keep the
+            # schema upgrade local and idempotent so prior records remain readable.
+            existing_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(notification_outbox)")
+            }
+            migrations = {
+                "delivery_attempted": "ALTER TABLE notification_outbox ADD COLUMN delivery_attempted INTEGER NOT NULL DEFAULT 0",
+                "transport": "ALTER TABLE notification_outbox ADD COLUMN transport TEXT NOT NULL DEFAULT 'outbox'",
+                "delivery_receipt": "ALTER TABLE notification_outbox ADD COLUMN delivery_receipt TEXT",
+            }
+            for column, statement in migrations.items():
+                if column not in existing_columns:
+                    conn.execute(statement)
 
     def reset_state(self) -> dict[str, Any]:
         with self.get_connection() as conn:
@@ -187,7 +204,8 @@ class AuthorizationStateService:
     ) -> dict[str, Any]:
         """
         Durable prior-authorization commit.
-        Enforces Washington ESSB 5395 and Iowa HF 2635:
+        Implements a control pattern aligned to enacted and upcoming requirements,
+        including Washington ESSB 5395 and Iowa HF 2635:
         Adverse decisions (DENY, DELAY, DOWNGRADE) or cases where policy criteria
         are not met require licensed human review before committing.
         """
@@ -212,7 +230,7 @@ class AuthorizationStateService:
             if not review:
                 raise ValueError(
                     f"Adverse authorization decision '{clean_decision}' blocked: "
-                    "licensed human review artifact required under WA ESSB 5395 and IA HF 2635."
+                    "licensed human review artifact required by the configured adverse-decision control."
                 )
 
             human_review_required = True
@@ -286,7 +304,7 @@ class AuthorizationStateService:
         destination: str = "provider@clinic.example",
         message: str = "",
     ) -> dict[str, Any]:
-        """Record notification in durable outbox and optionally dispatch via SMTP."""
+        """Record a notification and dispatch email only when SMTP is configured."""
         auth = self.get_authorization(authorization_id)
         if not auth:
             raise ValueError(
@@ -295,36 +313,54 @@ class AuthorizationStateService:
 
         notification_id = f"NOTIF-{uuid.uuid4().hex[:8].upper()}"
         created_at = datetime.now(UTC).isoformat()
+        normalized_channel = channel.lower()
         status = "SENT"
-        sent_at = created_at
+        sent_at: str | None = created_at
+        delivery_attempted = True
+        transport = "outbox"
+        delivery_receipt: str | None = "recorded_in_durable_outbox"
 
-        # Optional SMTP dispatch if explicitly configured in environment
+        # Email is an explicit delivery request: it must never be represented as
+        # successful merely because a durable outbox row was written.
         smtp_host = os.environ.get("SMTP_HOST")
-        if smtp_host and channel.lower() == "email":
-            try:
-                smtp_port = int(os.environ.get("SMTP_PORT", "25"))
-                smtp_user = os.environ.get("SMTP_USER")
-                smtp_pass = os.environ.get("SMTP_PASS")
-                msg = MIMEText(message)
-                msg["Subject"] = f"Prior Authorization Update: {authorization_id}"
-                msg["From"] = os.environ.get("SMTP_FROM", "notifications@um-portal.org")
-                msg["To"] = destination
+        if normalized_channel == "email":
+            transport = "smtp"
+            sent_at = None
+            delivery_receipt = None
+            if not smtp_host:
+                status = "NOT_CONFIGURED"
+                delivery_attempted = False
+            else:
+                delivery_attempted = True
+                try:
+                    smtp_port = int(os.environ.get("SMTP_PORT", "25"))
+                    smtp_user = os.environ.get("SMTP_USER")
+                    smtp_pass = os.environ.get("SMTP_PASS")
+                    msg = MIMEText(message)
+                    msg["Subject"] = f"Prior Authorization Update: {authorization_id}"
+                    msg["From"] = os.environ.get(
+                        "SMTP_FROM", "notifications@um-portal.org"
+                    )
+                    msg["To"] = destination
 
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=5) as server:
-                    if smtp_user and smtp_pass:
-                        server.starttls()
-                        server.login(smtp_user, smtp_pass)
-                    server.send_message(msg)
-                status = "SENT"
-            except Exception:
-                status = "FAILED"
+                    with smtplib.SMTP(smtp_host, smtp_port, timeout=5) as server:
+                        if smtp_user and smtp_pass:
+                            server.starttls()
+                            server.login(smtp_user, smtp_pass)
+                        server.send_message(msg)
+                    status = "SENT"
+                    sent_at = datetime.now(UTC).isoformat()
+                    delivery_receipt = "accepted_by_smtp"
+                except Exception:
+                    status = "FAILED"
 
         with self.get_connection() as conn:
             conn.execute(
                 """
                 INSERT INTO notification_outbox
-                (notification_id, authorization_id, channel, destination, message, status, created_at, sent_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (notification_id, authorization_id, channel, destination, message, status, created_at, sent_at,
+                 delivery_attempted, transport, delivery_receipt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     notification_id,
@@ -335,6 +371,9 @@ class AuthorizationStateService:
                     status,
                     created_at,
                     sent_at,
+                    1 if delivery_attempted else 0,
+                    transport,
+                    delivery_receipt,
                 ),
             )
             conn.execute(
@@ -351,6 +390,9 @@ class AuthorizationStateService:
             "status": status,
             "created_at": created_at,
             "sent_at": sent_at,
+            "delivery_attempted": delivery_attempted,
+            "transport": transport,
+            "delivery_receipt": delivery_receipt,
         }
 
     def list_outbox(self) -> list[dict[str, Any]]:
