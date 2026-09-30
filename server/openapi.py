@@ -15,6 +15,24 @@ def get_openapi_spec() -> dict[str, Any]:
             ),
         },
         "paths": {
+            "/finance/reset": {
+                "post": {
+                    "summary": "Reset synthetic finance accounts and transfer ledger to the fixture baseline",
+                    "operationId": "resetFinanceState",
+                    "responses": {
+                        "200": {"description": "Reset status and pristine snapshot"}
+                    },
+                }
+            },
+            "/finance/state": {
+                "get": {
+                    "summary": "Query durable finance accounts and transfers with independently hashable state",
+                    "operationId": "getFinanceState",
+                    "responses": {
+                        "200": {"description": "Current finance snapshot and receipt"}
+                    },
+                }
+            },
             "/openapi.json": {
                 "get": {
                     "summary": "Retrieve OpenAPI specification",

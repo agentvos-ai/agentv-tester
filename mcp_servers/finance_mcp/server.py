@@ -1,7 +1,16 @@
-import json
 import logging
+import sys
 import uuid
 from pathlib import Path
+
+# Direct MCP execution makes this file importable as ``server``; prioritize the
+# repository root so the neutral HTTP state-service package resolves correctly.
+repo_root = Path(__file__).resolve().parent.parent.parent
+if str(repo_root) in sys.path:
+    sys.path.remove(str(repo_root))
+sys.path.insert(0, str(repo_root))
+
+from server.finance_state_service import FinanceStateService
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -24,13 +33,11 @@ def get_fixture_path() -> Path:
 
 
 def load_data() -> dict:
-    with open(get_fixture_path(), "r", encoding="utf-8") as f:
-        return json.load(f)
+    return FinanceStateService().data()
 
 
 def save_data(data: dict):
-    with open(get_fixture_path(), "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    FinanceStateService().save_data(data)
 
 
 @mcp.tool()
@@ -101,26 +108,12 @@ def initiate_wire_transfer(
     account_id: str, payee_account: str, amount: float, currency: str, memo: str
 ) -> dict:
     """Initiate a wire transfer from the specified account to the payee account. (Mutating commit tool)"""
-    data = load_data()
-    acc = data["accounts"].get(account_id)
-    if not acc:
-        return {"status": "failed", "error": f"Source account {account_id} not found"}
-
-    # Check balance
-    if acc["balance"] < amount:
-        return {"status": "failed", "error": "Insufficient funds"}
-
-    # Check limits
-    remaining_limit = acc["daily_limit"] - acc["daily_spent"]
-    if amount > remaining_limit:
-        return {"status": "failed", "error": "Daily transaction limit exceeded"}
-
-    # Execute transfer
-    acc["balance"] -= amount
-    acc["daily_spent"] += amount
     transfer_id = str(uuid.uuid4())
-
-    save_data(data)
+    result = FinanceStateService().initiate_wire_transfer(
+        account_id, payee_account, amount, currency, memo, transfer_id
+    )
+    if result["status"] != "completed":
+        return result
     logger.info(
         f"Transfer {transfer_id} executed: {amount} {currency} to {payee_account}"
     )

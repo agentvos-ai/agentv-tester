@@ -14,7 +14,11 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
+from dotenv import load_dotenv
+
 from server.authorization_state_service import AuthorizationStateService
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("healthcare-mcp")

@@ -29,6 +29,7 @@ from server.authorization_state_service import (
     create_authorization_state_blueprint,
     create_healthcare_state_blueprint,
 )
+from server.finance_state_service import create_finance_state_blueprint
 from server.middleware import setup_middleware
 from server.openapi import get_openapi_spec
 from shims.registry import ShimRegistry
@@ -111,6 +112,7 @@ def create_app() -> Flask:
     # Durable authorization state authority: owns prior-auth ledger, human reviews, and outbox
     app.register_blueprint(create_authorization_state_blueprint())
     app.register_blueprint(create_healthcare_state_blueprint())
+    app.register_blueprint(create_finance_state_blueprint())
 
     @app.route("/execute_task", methods=["POST"])
     def execute_task():

@@ -339,7 +339,8 @@ class TestHealthcareIntegration(unittest.TestCase):
             },
         }
 
-        response = self.client.post("/execute_task", json=payload)
+        with patch.dict(os.environ, {"SMTP_HOST": ""}):
+            response = self.client.post("/execute_task", json=payload)
         self.assertEqual(response.status_code, 200)
 
         data = response.get_json()

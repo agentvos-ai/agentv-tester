@@ -1,12 +1,13 @@
 import inspect
 import logging
+import os
 import sys
 from typing import Any
 
+from pydantic import BaseModel, Field, create_model
+
 from core.base_agent import BaseAgent
 from core.mcp_client import MCPClient
-
-from pydantic import BaseModel, Field, create_model
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,7 @@ class BaseMCPAgent(BaseAgent):
             command=sys.executable,
             args=[self.mcp_server_script],
             transport=self.mcp_transport,
+            env=dict(os.environ),
         )
 
         try:
