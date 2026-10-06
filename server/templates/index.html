@@ -534,6 +534,7 @@
                 if (data.status === 'waiting_for_manual_review') {
                     statusBadge.textContent = 'Waiting for Physician Review';
                     statusBadge.className = 'status-badge status-waiting';
+                    if (data.review_request_id) pollWorkflow(data.review_request_id);
                 } else if (response.ok) {
                     statusBadge.textContent = 'Success';
                     statusBadge.className = 'status-badge status-success';
@@ -552,6 +553,24 @@
                 btnText.textContent = 'Execute Task';
             }
         });
+
+        async function pollWorkflow(requestId) {
+            const trajectoryBlock = document.getElementById('trajectory-block');
+            const timer = setInterval(async () => {
+                try {
+                    const response = await fetch('/healthcare/workflows/' + encodeURIComponent(requestId));
+                    if (!response.ok) return;
+                    const workflow = await response.json();
+                    trajectoryBlock.textContent = JSON.stringify(workflow.trajectory, null, 4);
+                    if (workflow.status !== 'WAITING_FOR_REVIEW') {
+                        clearInterval(timer);
+                        statusBadge.textContent = workflow.status.replaceAll('_', ' ');
+                        statusBadge.className = workflow.status === 'COMPLETED' ? 'status-badge status-success' : 'status-badge status-error';
+                        outputBlock.textContent = JSON.stringify(workflow, null, 4);
+                    }
+                } catch (_) { /* retain the waiting state and retry */ }
+            }, 2000);
+        }
 
         function loadScenario(id, input, contextJson) {
             document.getElementById('task_id').value = id;

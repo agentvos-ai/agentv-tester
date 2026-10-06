@@ -205,7 +205,7 @@ def create_app() -> Flask:
                 )
                 if pending:
                     workflow = authorization_service.create_physician_review_workflow(
-                        pending["request_id"], data
+                        pending["request_id"], data, result.get("tool_calls", [])
                     )
                     result["review_request_id"] = pending["request_id"]
                     result["workflow_id"] = workflow["workflow_id"]
@@ -219,6 +219,22 @@ def create_app() -> Flask:
 
                     logging.getLogger(__name__).warning(f"Error closing agent: {e}")
             shim_registry.shutdown_all()
+
+    @app.get("/healthcare/workflows/<request_id>")
+    def get_physician_review_workflow(request_id: str):
+        workflow = authorization_service.get_physician_review_workflow_by_request(
+            request_id
+        )
+        if not workflow:
+            return jsonify({"error": "Workflow not found."}), 404
+        return jsonify(
+            {
+                "workflow_id": workflow["workflow_id"],
+                "status": workflow["status"],
+                "authorization_id": workflow["authorization_id"],
+                "trajectory": json.loads(workflow["trajectory_json"]),
+            }
+        ), 200
 
     @app.post("/healthcare/physician-review/<approval_token>/resume")
     def resume_physician_review_workflow(approval_token: str):
@@ -263,6 +279,9 @@ def create_app() -> Flask:
                 disposition=disposition,
                 clinical_notes=clinical_notes,
             )
+            authorization_service.append_workflow_step(
+                review_request["request_id"], "record_human_review"
+            )
             if completed["request"]["status"] == "REJECTED":
                 authorization_service.complete_physician_review_workflow(
                     review_request["request_id"], None, None
@@ -285,12 +304,24 @@ def create_app() -> Flask:
                 review_request["procedure_code"],
                 disposition,
             )
+            authorization_service.append_workflow_step(
+                review_request["request_id"], "submit_authorization_decision"
+            )
             if auth.get("status") == "failed":
                 authorization_service.set_physician_review_workflow_status(
                     review_request["request_id"], "BLOCKED_BY_POLICY"
                 )
                 email = send_physician_policy_block_email(
-                    review_request["procedure_code"]
+                    review_request["procedure_code"], completed["review"]["review_id"]
+                )
+                authorization_service.record_review_notification(
+                    review_request["request_id"],
+                    completed["review"]["review_id"],
+                    email.get(
+                        "destination", os.environ.get("PHYSICIAN_REVIEW_EMAIL", "")
+                    ),
+                    "Physician approval blocked by policy.",
+                    email.get("status", "failed"),
                 )
                 return render_template(
                     "physician_review_complete.html",
@@ -306,6 +337,9 @@ def create_app() -> Flask:
                 context.get("notification_channel", "outbox"),
                 context.get("notification_destination", "provider@clinic.example"),
                 f"Prior authorization {review_request['procedure_code']} {disposition} following physician review.",
+            )
+            authorization_service.append_workflow_step(
+                review_request["request_id"], "send_provider_notification"
             )
             persisted = authorization_service.complete_physician_review_workflow(
                 review_request["request_id"],

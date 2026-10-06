@@ -310,14 +310,14 @@ def _send_review_email(request_record: dict) -> dict:
         return {"status": "failed", "transport": "smtp", "destination": recipient}
 
 
-def send_physician_policy_block_email(procedure_code: str) -> dict:
+def send_physician_policy_block_email(procedure_code: str, review_id: str) -> dict:
     """Inform the reviewing physician that an approval could not pass policy controls."""
     recipient = os.environ.get("PHYSICIAN_REVIEW_EMAIL")
     smtp_host = os.environ.get("SMTP_HOST")
     if not recipient or not smtp_host:
         return {"status": "not_configured"}
     message = MIMEText(
-        f"Your approval for prior authorization {procedure_code} could not be enacted.\n\n"
+        f"Your approval for prior authorization {procedure_code} (review {review_id}) could not be enacted.\n\n"
         "The request remains blocked because the required clinical policy criteria were not met. "
         "No authorization decision or provider notification was issued."
     )

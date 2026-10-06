@@ -138,7 +138,14 @@ class AuthorizationStateService:
                     resumed_at TEXT,
                     authorization_id TEXT,
                     notification_id TEXT
+                    ,trajectory_json TEXT NOT NULL DEFAULT '[]'
                 )"""
+            )
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS review_notification_outbox (
+                    notification_id TEXT PRIMARY KEY, request_id TEXT NOT NULL,
+                    review_id TEXT, destination TEXT NOT NULL, message TEXT NOT NULL,
+                    status TEXT NOT NULL, created_at TEXT NOT NULL)"""
             )
             # Existing demo ledgers predate delivery-evidence columns.  Keep the
             # schema upgrade local and idempotent so prior records remain readable.
@@ -162,18 +169,27 @@ class AuthorizationStateService:
                 conn.execute(
                     "ALTER TABLE human_review_requests ADD COLUMN approval_token_hash TEXT"
                 )
+            workflow_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(physician_review_workflows)")
+            }
+            if "trajectory_json" not in workflow_columns:
+                conn.execute(
+                    "ALTER TABLE physician_review_workflows ADD COLUMN trajectory_json TEXT NOT NULL DEFAULT '[]'"
+                )
 
     def reset_state(self) -> dict[str, Any]:
         with self.get_connection() as conn:
             conn.execute("DELETE FROM notification_outbox")
             conn.execute("DELETE FROM human_review_requests")
             conn.execute("DELETE FROM physician_review_workflows")
+            conn.execute("DELETE FROM review_notification_outbox")
             conn.execute("DELETE FROM human_reviews")
             conn.execute("DELETE FROM authorizations")
         return self.snapshot()
 
     def create_physician_review_workflow(
-        self, request_id: str, task: dict[str, Any]
+        self, request_id: str, task: dict[str, Any], trajectory: list[Any] | None = None
     ) -> dict[str, Any]:
         """Persist the work blocked by an external review; duplicate pauses reuse it."""
         with self.get_connection() as conn:
@@ -187,11 +203,40 @@ class AuthorizationStateService:
             created_at = datetime.now(UTC).isoformat()
             conn.execute(
                 """INSERT INTO physician_review_workflows
-                   (workflow_id, request_id, task_json, status, created_at)
-                   VALUES (?, ?, ?, 'WAITING_FOR_REVIEW', ?)""",
-                (workflow_id, request_id, json.dumps(task), created_at),
+                   (workflow_id, request_id, task_json, status, created_at, trajectory_json)
+                   VALUES (?, ?, ?, 'WAITING_FOR_REVIEW', ?, ?)""",
+                (
+                    workflow_id,
+                    request_id,
+                    json.dumps(task),
+                    created_at,
+                    json.dumps(trajectory or []),
+                ),
             )
         return self.get_physician_review_workflow_by_request(request_id)  # type: ignore
+
+    def append_workflow_step(
+        self, request_id: str, tool: str, status: str = "completed"
+    ) -> None:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT trajectory_json FROM physician_review_workflows WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if not row:
+                return
+            steps = json.loads(row["trajectory_json"])
+            steps.append(
+                {
+                    "tool": tool,
+                    "status": status,
+                    "recorded_at": datetime.now(UTC).isoformat(),
+                }
+            )
+            conn.execute(
+                "UPDATE physician_review_workflows SET trajectory_json = ? WHERE request_id = ?",
+                (json.dumps(steps), request_id),
+            )
 
     def get_physician_review_workflow_by_request(
         self, request_id: str
@@ -240,6 +285,30 @@ class AuthorizationStateService:
                 (status, datetime.now(UTC).isoformat(), request_id),
             )
         return self.get_physician_review_workflow_by_request(request_id)  # type: ignore
+
+    def record_review_notification(
+        self,
+        request_id: str,
+        review_id: str | None,
+        destination: str,
+        message: str,
+        status: str,
+    ) -> dict[str, Any]:
+        record = {
+            "notification_id": f"REV-NOTIF-{uuid.uuid4().hex[:8].upper()}",
+            "request_id": request_id,
+            "review_id": review_id,
+            "destination": destination,
+            "message": message,
+            "status": status,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+        with self.get_connection() as conn:
+            conn.execute(
+                """INSERT INTO review_notification_outbox (notification_id, request_id, review_id, destination, message, status, created_at) VALUES (:notification_id, :request_id, :review_id, :destination, :message, :status, :created_at)""",
+                record,
+            )
+        return record
 
     def create_human_review_request(
         self, patient_id: str, procedure_code: str, reason: str = ""
@@ -679,7 +748,10 @@ class AuthorizationStateService:
             rows = conn.execute(
                 "SELECT * FROM notification_outbox ORDER BY created_at ASC"
             ).fetchall()
-            return [dict(r) for r in rows]
+            reviews = conn.execute(
+                "SELECT * FROM review_notification_outbox ORDER BY created_at ASC"
+            ).fetchall()
+            return [dict(r) for r in rows] + [dict(r) for r in reviews]
 
     def list_human_reviews(self) -> list[dict[str, Any]]:
         with self.get_connection() as conn:
