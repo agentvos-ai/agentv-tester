@@ -303,6 +303,11 @@
             color: var(--error);
         }
 
+        .status-waiting {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
         pre {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid var(--border-color);
@@ -449,7 +454,7 @@
             <div class="results-area" id="results-area">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab('output')">Response</div>
-                    <div class="tab" onclick="switchTab('trajectory')">Forensic Trajectory</div>
+                    <div class="tab" onclick="switchTab('trajectory')">Agent Tool Trajectory</div>
                 </div>
                 <div id="output-view">
                     <div class="results-header">
@@ -466,6 +471,7 @@
                 </div>
             </div>
         </main>
+        <p style="text-align:center; margin-top: 1rem;"><a href="/healthcare/state">View durable state</a></p>
     </div>
 
     <footer class="footer">
@@ -525,7 +531,10 @@
                     trajectoryBlock.textContent = "No tool calls detected in this trajectory.";
                 }
 
-                if (response.ok) {
+                if (data.status === 'waiting_for_manual_review') {
+                    statusBadge.textContent = 'Waiting for Physician Review';
+                    statusBadge.className = 'status-badge status-waiting';
+                } else if (response.ok) {
                     statusBadge.textContent = 'Success';
                     statusBadge.className = 'status-badge status-success';
                 } else {

@@ -238,12 +238,12 @@ def create_app() -> Flask:
                 {"error": "No paused workflow is associated with this review."}
             ), 409
         if workflow["status"] != "WAITING_FOR_REVIEW":
-            return jsonify(
-                {
-                    "status": workflow["status"].lower(),
-                    "workflow_id": workflow["workflow_id"],
-                    "authorization_id": workflow["authorization_id"],
-                }
+            return render_template(
+                "physician_review_complete.html",
+                disposition="Recorded",
+                workflow_status=workflow["status"],
+                authorization_id=workflow["authorization_id"],
+                notification_status="Not sent",
             ), 200
         reviewer_id = request.form.get("reviewer_id", "").strip()
         reviewer_type = request.form.get("reviewer_type", "").strip()
@@ -267,8 +267,12 @@ def create_app() -> Flask:
                 authorization_service.complete_physician_review_workflow(
                     review_request["request_id"], None, None
                 )
-                return jsonify(
-                    {"status": "skipped", "workflow_id": workflow["workflow_id"]}
+                return render_template(
+                    "physician_review_complete.html",
+                    disposition="Skip review",
+                    workflow_status="SKIPPED",
+                    authorization_id=None,
+                    notification_status="Not sent",
                 ), 200
             from mcp_servers.healthcare_mcp.server import (
                 send_physician_policy_block_email,
@@ -288,15 +292,12 @@ def create_app() -> Flask:
                 email = send_physician_policy_block_email(
                     review_request["procedure_code"]
                 )
-                return jsonify(
-                    {
-                        "status": "blocked_by_policy",
-                        "workflow_id": workflow["workflow_id"],
-                        "error": auth.get(
-                            "error", "Authorization continuation failed."
-                        ),
-                        "physician_notification": email,
-                    }
+                return render_template(
+                    "physician_review_complete.html",
+                    disposition="Approve",
+                    workflow_status="BLOCKED_BY_POLICY",
+                    authorization_id=None,
+                    notification_status=email.get("status", "Not sent"),
                 ), 409
             task = json.loads(workflow["task_json"])
             context = task.get("context", {})
@@ -311,12 +312,12 @@ def create_app() -> Flask:
                 auth["auth_id"],
                 notification.get("notification_id"),
             )
-            return jsonify(
-                {
-                    "status": "completed",
-                    "workflow_id": persisted["workflow_id"],
-                    "authorization_id": auth["auth_id"],
-                }
+            return render_template(
+                "physician_review_complete.html",
+                disposition=disposition,
+                workflow_status=persisted["status"],
+                authorization_id=auth["auth_id"],
+                notification_status=notification.get("delivery_status", "Not sent"),
             ), 200
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 409

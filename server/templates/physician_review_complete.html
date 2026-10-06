@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Physician Review Complete</title></head>
+<body>
+  <main>
+    <h1>Review recorded</h1>
+    <dl>
+      <dt>Disposition</dt><dd>{{ disposition }}</dd>
+      <dt>Workflow status</dt><dd>{{ workflow_status }}</dd>
+      <dt>Authorization ID</dt><dd>{{ authorization_id or 'Not created' }}</dd>
+      <dt>Notification status</dt><dd>{{ notification_status }}</dd>
+    </dl>
+  </main>
+</body>
+</html>
