@@ -248,9 +248,18 @@ def request_human_review(
     request_record = get_state_service().create_human_review_request(
         patient_id, procedure_code, reason
     )
-    delivery = _send_review_email(request_record)
+    external_mode = (
+        os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower() == "external"
+    )
+    delivery = (
+        _send_review_email(request_record)
+        if external_mode
+        else {"status": "not_sent", "message": "Automatic review mode is active."}
+    )
     return {
-        "status": "pending_physician_review",
+        "status": "pending_physician_review"
+        if external_mode
+        else "auto_review_pending",
         "request_id": request_record["request_id"],
         "patient_id": patient_id,
         "procedure_code": procedure_code.upper(),
@@ -266,11 +275,16 @@ def _send_review_email(request_record: dict) -> dict:
     token = request_record.pop("_approval_token", None)
     if not token:
         return {"status": "already_requested"}
-    base_url = os.environ.get("REVIEW_PUBLIC_BASE_URL", "http://localhost:8080").rstrip("/")
+    base_url = os.environ.get("REVIEW_PUBLIC_BASE_URL", "http://localhost:8080").rstrip(
+        "/"
+    )
     approval_url = f"{base_url}/healthcare/physician-review/{token}"
     smtp_host = os.environ.get("SMTP_HOST")
     if not recipient or not smtp_host:
-        return {"status": "not_configured", "message": "Set PHYSICIAN_REVIEW_EMAIL and SMTP_HOST to deliver the review link."}
+        return {
+            "status": "not_configured",
+            "message": "Set PHYSICIAN_REVIEW_EMAIL and SMTP_HOST to deliver the review link.",
+        }
     smtp_port = int(os.environ.get("SMTP_PORT", "25"))
     smtp_user = os.environ.get("SMTP_USER")
     smtp_pass = os.environ.get("SMTP_PASS")
@@ -280,7 +294,9 @@ def _send_review_email(request_record: dict) -> dict:
         "Do not forward this link. It contains no patient details."
     )
     message["Subject"] = "Physician review required"
-    message["From"] = os.environ.get("SMTP_FROM", smtp_user or "notifications@um-portal.org")
+    message["From"] = os.environ.get(
+        "SMTP_FROM", smtp_user or "notifications@um-portal.org"
+    )
     message["To"] = recipient
     try:
         with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
@@ -291,6 +307,36 @@ def _send_review_email(request_record: dict) -> dict:
         return {"status": "sent", "transport": "smtp", "destination": recipient}
     except Exception as exc:
         logger.warning("Unable to send physician review email: %s", exc)
+        return {"status": "failed", "transport": "smtp", "destination": recipient}
+
+
+def send_physician_policy_block_email(procedure_code: str) -> dict:
+    """Inform the reviewing physician that an approval could not pass policy controls."""
+    recipient = os.environ.get("PHYSICIAN_REVIEW_EMAIL")
+    smtp_host = os.environ.get("SMTP_HOST")
+    if not recipient or not smtp_host:
+        return {"status": "not_configured"}
+    message = MIMEText(
+        f"Your approval for prior authorization {procedure_code} could not be enacted.\n\n"
+        "The request remains blocked because the required clinical policy criteria were not met. "
+        "No authorization decision or provider notification was issued."
+    )
+    message["Subject"] = "Physician approval blocked by policy"
+    message["From"] = os.environ.get(
+        "SMTP_FROM", os.environ.get("SMTP_USER", "notifications@um-portal.org")
+    )
+    message["To"] = recipient
+    try:
+        with smtplib.SMTP(
+            smtp_host, int(os.environ.get("SMTP_PORT", "25")), timeout=10
+        ) as server:
+            if os.environ.get("SMTP_USER") and os.environ.get("SMTP_PASS"):
+                server.starttls()
+                server.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
+            server.send_message(message)
+        return {"status": "sent", "transport": "smtp", "destination": recipient}
+    except Exception as exc:
+        logger.warning("Unable to send physician policy-block email: %s", exc)
         return {"status": "failed", "transport": "smtp", "destination": recipient}
 
 
@@ -309,16 +355,22 @@ def record_human_review(
     if request_id:
         completed = service.complete_human_review_request(
             request_id,
-            patient_id=patient_id, procedure_code=procedure_code,
-            reviewer_id=reviewer_id, reviewer_type=reviewer_type,
-            disposition=disposition, clinical_notes=clinical_notes,
+            patient_id=patient_id,
+            procedure_code=procedure_code,
+            reviewer_id=reviewer_id,
+            reviewer_type=reviewer_type,
+            disposition=disposition,
+            clinical_notes=clinical_notes,
         )
         review = completed["review"]
     else:
         review = service.record_human_review(
-            patient_id=patient_id, procedure_code=procedure_code,
-            reviewer_id=reviewer_id, reviewer_type=reviewer_type,
-            disposition=disposition, clinical_notes=clinical_notes,
+            patient_id=patient_id,
+            procedure_code=procedure_code,
+            reviewer_id=reviewer_id,
+            reviewer_type=reviewer_type,
+            disposition=disposition,
+            clinical_notes=clinical_notes,
         )
     return {
         "status": "completed",
@@ -379,7 +431,9 @@ def submit_authorization_decision(
     if clean_decision in ("DENY", "DELAY", "DOWNGRADE") or not criteria_met:
         review = service.get_latest_human_review(patient_id, procedure_code)
         if os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower() == "external":
-            completed_request = service.get_completed_human_review(patient_id, procedure_code)
+            completed_request = service.get_completed_human_review(
+                patient_id, procedure_code
+            )
             if not completed_request:
                 pending = service.get_pending_human_review(patient_id, procedure_code)
                 return {

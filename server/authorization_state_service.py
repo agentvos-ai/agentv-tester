@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from flask import Blueprint, jsonify, request, render_template_string
+from flask import Blueprint, jsonify, render_template_string, request
 
 load_dotenv()
 
@@ -128,6 +128,18 @@ class AuthorizationStateService:
                 )
                 """
             )
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS physician_review_workflows (
+                    workflow_id TEXT PRIMARY KEY,
+                    request_id TEXT UNIQUE NOT NULL,
+                    task_json TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    resumed_at TEXT,
+                    authorization_id TEXT,
+                    notification_id TEXT
+                )"""
+            )
             # Existing demo ledgers predate delivery-evidence columns.  Keep the
             # schema upgrade local and idempotent so prior records remain readable.
             existing_columns = {
@@ -142,17 +154,92 @@ class AuthorizationStateService:
             for column, statement in migrations.items():
                 if column not in existing_columns:
                     conn.execute(statement)
-            request_columns = {row["name"] for row in conn.execute("PRAGMA table_info(human_review_requests)")}
+            request_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(human_review_requests)")
+            }
             if "approval_token_hash" not in request_columns:
-                conn.execute("ALTER TABLE human_review_requests ADD COLUMN approval_token_hash TEXT")
+                conn.execute(
+                    "ALTER TABLE human_review_requests ADD COLUMN approval_token_hash TEXT"
+                )
 
     def reset_state(self) -> dict[str, Any]:
         with self.get_connection() as conn:
             conn.execute("DELETE FROM notification_outbox")
             conn.execute("DELETE FROM human_review_requests")
+            conn.execute("DELETE FROM physician_review_workflows")
             conn.execute("DELETE FROM human_reviews")
             conn.execute("DELETE FROM authorizations")
         return self.snapshot()
+
+    def create_physician_review_workflow(
+        self, request_id: str, task: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Persist the work blocked by an external review; duplicate pauses reuse it."""
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM physician_review_workflows WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if row:
+                return dict(row)
+            workflow_id = f"HREV-WF-{uuid.uuid4().hex[:8].upper()}"
+            created_at = datetime.now(UTC).isoformat()
+            conn.execute(
+                """INSERT INTO physician_review_workflows
+                   (workflow_id, request_id, task_json, status, created_at)
+                   VALUES (?, ?, ?, 'WAITING_FOR_REVIEW', ?)""",
+                (workflow_id, request_id, json.dumps(task), created_at),
+            )
+        return self.get_physician_review_workflow_by_request(request_id)  # type: ignore
+
+    def get_physician_review_workflow_by_request(
+        self, request_id: str
+    ) -> dict[str, Any] | None:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM physician_review_workflows WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def complete_physician_review_workflow(
+        self, request_id: str, authorization_id: str | None, notification_id: str | None
+    ) -> dict[str, Any]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM physician_review_workflows WHERE request_id = ?",
+                (request_id,),
+            ).fetchone()
+            if not row:
+                raise ValueError(
+                    f"No pending workflow found for review request '{request_id}'."
+                )
+            workflow = dict(row)
+            if workflow["status"] == "COMPLETED":
+                return workflow
+            conn.execute(
+                """UPDATE physician_review_workflows SET status = 'COMPLETED', resumed_at = ?, authorization_id = ?, notification_id = ?
+                   WHERE request_id = ? AND status = 'WAITING_FOR_REVIEW'""",
+                (
+                    datetime.now(UTC).isoformat(),
+                    authorization_id,
+                    notification_id,
+                    request_id,
+                ),
+            )
+        return self.get_physician_review_workflow_by_request(request_id)  # type: ignore
+
+    def set_physician_review_workflow_status(
+        self, request_id: str, status: str
+    ) -> dict[str, Any]:
+        """Record a terminal non-commit outcome, such as an approval blocked by policy."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE physician_review_workflows SET status = ?, resumed_at = ? WHERE request_id = ? AND status = 'WAITING_FOR_REVIEW'",
+                (status, datetime.now(UTC).isoformat(), request_id),
+            )
+        return self.get_physician_review_workflow_by_request(request_id)  # type: ignore
 
     def create_human_review_request(
         self, patient_id: str, procedure_code: str, reason: str = ""
@@ -179,8 +266,14 @@ class AuthorizationStateService:
                 """INSERT INTO human_review_requests
                    (request_id, patient_id, procedure_code, reason, status, requested_at, approval_token_hash)
                    VALUES (?, ?, ?, ?, 'PENDING', ?, ?)""",
-                (request_id, patient_id, procedure_code, reason, requested_at,
-                 hashlib.sha256(approval_token.encode("utf-8")).hexdigest()),
+                (
+                    request_id,
+                    patient_id,
+                    procedure_code,
+                    reason,
+                    requested_at,
+                    hashlib.sha256(approval_token.encode("utf-8")).hexdigest(),
+                ),
             )
         created = self.get_human_review_request(request_id)  # type: ignore
         created["_approval_token"] = approval_token
@@ -189,19 +282,25 @@ class AuthorizationStateService:
     def get_human_review_request(self, request_id: str) -> dict[str, Any] | None:
         with self.get_connection() as conn:
             row = conn.execute(
-                "SELECT * FROM human_review_requests WHERE request_id = ?", (request_id,)
+                "SELECT * FROM human_review_requests WHERE request_id = ?",
+                (request_id,),
             ).fetchone()
             return dict(row) if row else None
 
-    def get_human_review_request_by_approval_token(self, approval_token: str) -> dict[str, Any] | None:
+    def get_human_review_request_by_approval_token(
+        self, approval_token: str
+    ) -> dict[str, Any] | None:
         token_hash = hashlib.sha256(approval_token.encode("utf-8")).hexdigest()
         with self.get_connection() as conn:
             row = conn.execute(
-                "SELECT * FROM human_review_requests WHERE approval_token_hash = ?", (token_hash,)
+                "SELECT * FROM human_review_requests WHERE approval_token_hash = ?",
+                (token_hash,),
             ).fetchone()
             return dict(row) if row else None
 
-    def get_pending_human_review(self, patient_id: str, procedure_code: str) -> dict[str, Any] | None:
+    def get_pending_human_review(
+        self, patient_id: str, procedure_code: str
+    ) -> dict[str, Any] | None:
         with self.get_connection() as conn:
             row = conn.execute(
                 """SELECT * FROM human_review_requests WHERE patient_id = ?
@@ -211,7 +310,9 @@ class AuthorizationStateService:
             ).fetchone()
             return dict(row) if row else None
 
-    def get_completed_human_review(self, patient_id: str, procedure_code: str) -> dict[str, Any] | None:
+    def get_completed_human_review(
+        self, patient_id: str, procedure_code: str
+    ) -> dict[str, Any] | None:
         with self.get_connection() as conn:
             row = conn.execute(
                 """SELECT * FROM human_review_requests WHERE patient_id = ?
@@ -221,26 +322,45 @@ class AuthorizationStateService:
             ).fetchone()
             return dict(row) if row else None
 
-    def complete_human_review_request(self, request_id: str, **review_data: Any) -> dict[str, Any]:
+    def complete_human_review_request(
+        self, request_id: str, **review_data: Any
+    ) -> dict[str, Any]:
         """Atomically bind a pending request to exactly one durable review."""
         with self.get_connection() as conn:
             request_row = conn.execute(
-                "SELECT * FROM human_review_requests WHERE request_id = ?", (request_id,)
+                "SELECT * FROM human_review_requests WHERE request_id = ?",
+                (request_id,),
             ).fetchone()
             if not request_row:
                 raise ValueError(f"Human review request '{request_id}' not found.")
             request_data = dict(request_row)
             if request_data["status"] == "COMPLETED":
                 review = conn.execute(
-                    "SELECT * FROM human_reviews WHERE review_id = ?", (request_data["review_id"],)
+                    "SELECT * FROM human_reviews WHERE review_id = ?",
+                    (request_data["review_id"],),
                 ).fetchone()
-                return {"request": request_data, "review": dict(review) if review else None, "idempotent": True}
+                return {
+                    "request": request_data,
+                    "review": dict(review) if review else None,
+                    "idempotent": True,
+                }
             if request_data["status"] != "PENDING":
-                raise ValueError(f"Human review request '{request_id}' is {request_data['status']}.")
-            if (review_data["patient_id"] != request_data["patient_id"] or
-                    review_data["procedure_code"].upper() != request_data["procedure_code"]):
-                raise ValueError("Review patient and procedure must match the pending request.")
-            if review_data["disposition"].upper().strip() in {"REJECT", "REJECTED"}:
+                raise ValueError(
+                    f"Human review request '{request_id}' is {request_data['status']}."
+                )
+            if (
+                review_data["patient_id"] != request_data["patient_id"]
+                or review_data["procedure_code"].upper()
+                != request_data["procedure_code"]
+            ):
+                raise ValueError(
+                    "Review patient and procedure must match the pending request."
+                )
+            if review_data["disposition"].upper().strip() in {
+                "REJECT",
+                "REJECTED",
+                "SKIP_REVIEW",
+            }:
                 completed_at = datetime.now(UTC).isoformat()
                 conn.execute(
                     "UPDATE human_review_requests SET status = 'REJECTED', completed_at = ? WHERE request_id = ?",
@@ -248,26 +368,41 @@ class AuthorizationStateService:
                 )
                 request_data.update(status="REJECTED", completed_at=completed_at)
                 return {"request": request_data, "review": None, "idempotent": False}
-            review_id = review_data.get("review_id") or f"REV-{uuid.uuid4().hex[:8].upper()}"
+            review_id = (
+                review_data.get("review_id") or f"REV-{uuid.uuid4().hex[:8].upper()}"
+            )
             reviewed_at = datetime.now(UTC).isoformat()
             conn.execute(
                 """INSERT INTO human_reviews
                    (review_id, patient_id, procedure_code, reviewer_id, reviewer_type, disposition, clinical_notes, reviewed_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (review_id, request_data["patient_id"], request_data["procedure_code"],
-                 review_data["reviewer_id"], review_data["reviewer_type"],
-                 review_data["disposition"].upper().strip(), review_data.get("clinical_notes", ""), reviewed_at),
+                (
+                    review_id,
+                    request_data["patient_id"],
+                    request_data["procedure_code"],
+                    review_data["reviewer_id"],
+                    review_data["reviewer_type"],
+                    review_data["disposition"].upper().strip(),
+                    review_data.get("clinical_notes", ""),
+                    reviewed_at,
+                ),
             )
             conn.execute(
                 """UPDATE human_review_requests SET status = 'COMPLETED', completed_at = ?, review_id = ?
                    WHERE request_id = ? AND status = 'PENDING'""",
                 (reviewed_at, review_id, request_id),
             )
-        return {"request": self.get_human_review_request(request_id), "review": self.get_human_review_by_id(review_id), "idempotent": False}
+        return {
+            "request": self.get_human_review_request(request_id),
+            "review": self.get_human_review_by_id(review_id),
+            "idempotent": False,
+        }
 
     def get_human_review_by_id(self, review_id: str) -> dict[str, Any] | None:
         with self.get_connection() as conn:
-            row = conn.execute("SELECT * FROM human_reviews WHERE review_id = ?", (review_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM human_reviews WHERE review_id = ?", (review_id,)
+            ).fetchone()
             return dict(row) if row else None
 
     def record_human_review(
@@ -555,7 +690,9 @@ class AuthorizationStateService:
 
     def list_human_review_requests(self) -> list[dict[str, Any]]:
         with self.get_connection() as conn:
-            rows = conn.execute("SELECT * FROM human_review_requests ORDER BY requested_at ASC").fetchall()
+            rows = conn.execute(
+                "SELECT * FROM human_review_requests ORDER BY requested_at ASC"
+            ).fetchall()
             return [dict(r) for r in rows]
 
     def snapshot(self) -> dict[str, Any]:
@@ -625,7 +762,9 @@ def create_authorization_state_blueprint(
     def get_review_status(request_id: str):
         review_request = service.get_human_review_request(request_id)
         if not review_request:
-            return jsonify({"error": f"Human review request '{request_id}' not found"}), 404
+            return jsonify(
+                {"error": f"Human review request '{request_id}' not found"}
+            ), 404
         result: dict[str, Any] = {
             "request_id": request_id,
             "status": review_request["status"],
@@ -634,13 +773,17 @@ def create_authorization_state_blueprint(
             "reason": review_request["reason"],
         }
         if review_request["status"] == "COMPLETED" and review_request["review_id"]:
-            result["review"] = service.get_human_review_by_id(review_request["review_id"])
+            result["review"] = service.get_human_review_by_id(
+                review_request["review_id"]
+            )
         return jsonify(result), 200
 
     @bp.route("/physician-review/<approval_token>", methods=["GET", "POST"])
     def physician_review_form(approval_token: str):
         """Minimal same-origin approval page for the physician's opaque link."""
-        review_request = service.get_human_review_request_by_approval_token(approval_token)
+        review_request = service.get_human_review_request_by_approval_token(
+            approval_token
+        )
         if not review_request:
             return render_template_string("<h1>Review link is invalid.</h1>"), 404
         if request.method == "POST":
@@ -649,27 +792,42 @@ def create_authorization_state_blueprint(
             disposition = request.form.get("disposition", "").strip().upper()
             clinical_notes = request.form.get("clinical_notes", "").strip()
             if not all([reviewer_id, reviewer_type, disposition]):
-                return render_template_string("<h1>Reviewer identity and disposition are required.</h1>"), 400
+                return render_template_string(
+                    "<h1>Reviewer identity and disposition are required.</h1>"
+                ), 400
             try:
                 service.complete_human_review_request(
-                    review_request["request_id"], patient_id=review_request["patient_id"],
-                    procedure_code=review_request["procedure_code"], reviewer_id=reviewer_id,
-                    reviewer_type=reviewer_type, disposition=disposition, clinical_notes=clinical_notes,
+                    review_request["request_id"],
+                    patient_id=review_request["patient_id"],
+                    procedure_code=review_request["procedure_code"],
+                    reviewer_id=reviewer_id,
+                    reviewer_type=reviewer_type,
+                    disposition=disposition,
+                    clinical_notes=clinical_notes,
                 )
             except ValueError as exc:
-                return render_template_string("<h1>Review could not be submitted.</h1><p>{{ error }}</p>", error=str(exc)), 409
-            return render_template_string("<h1>Review submitted</h1><p>The authorization workflow may now continue.</p>")
+                return render_template_string(
+                    "<h1>Review could not be submitted.</h1><p>{{ error }}</p>",
+                    error=str(exc),
+                ), 409
+            return render_template_string(
+                "<h1>Review submitted</h1><p>The authorization workflow may now continue.</p>"
+            )
         if review_request["status"] != "PENDING":
-            return render_template_string("<h1>This review is already {{ status }}.</h1>", status=review_request["status"]), 409
+            return render_template_string(
+                "<h1>This review is already {{ status }}.</h1>",
+                status=review_request["status"],
+            ), 409
         return render_template_string(
             """<!doctype html><title>Physician Review</title>
             <h1>Physician Review</h1><p>Request {{ request_id }}</p>
-            <form method="post"><label>Reviewer ID <input name="reviewer_id" required></label><br>
+            <form method="post" action="/healthcare/physician-review/{{ approval_token }}/resume"><label>Reviewer ID <input name="reviewer_id" required></label><br>
             <label>Reviewer type <input name="reviewer_type" value="LICENSED_PHYSICIAN" required></label><br>
-            <label>Disposition <select name="disposition"><option value="DENY">Deny</option><option value="REJECTED">Reject review</option></select></label><br>
+            <label>Disposition <select name="disposition"><option value="DENY">Deny</option><option value="APPROVE">Approve</option><option value="SKIP_REVIEW">Skip review</option></select></label><br>
             <label>Clinical rationale<br><textarea name="clinical_notes" required rows="5" cols="60"></textarea></label><br>
             <button type="submit">Submit review</button></form>""",
             request_id=review_request["request_id"],
+            approval_token=approval_token,
         )
 
     @bp.post("/reviews")
@@ -695,11 +853,16 @@ def create_authorization_state_blueprint(
                 )
             except ValueError as exc:
                 return jsonify({"error": str(exc)}), 409
-            return jsonify({"status": "recorded", **completed}), 200 if completed["idempotent"] else 201
+            return jsonify({"status": "recorded", **completed}), 200 if completed[
+                "idempotent"
+            ] else 201
         review = service.record_human_review(
-            patient_id=payload["patient_id"], procedure_code=payload["procedure_code"],
-            reviewer_id=payload["reviewer_id"], reviewer_type=payload["reviewer_type"],
-            disposition=payload["disposition"], clinical_notes=payload.get("clinical_notes", ""),
+            patient_id=payload["patient_id"],
+            procedure_code=payload["procedure_code"],
+            reviewer_id=payload["reviewer_id"],
+            reviewer_type=payload["reviewer_type"],
+            disposition=payload["disposition"],
+            clinical_notes=payload.get("clinical_notes", ""),
             review_id=payload.get("review_id"),
         )
         return jsonify({"status": "recorded", "review": review}), 201

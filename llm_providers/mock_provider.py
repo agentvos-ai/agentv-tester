@@ -1,6 +1,6 @@
 import json
-import os
 import logging
+import os
 import re
 from typing import Any
 
@@ -473,14 +473,19 @@ class MockLLMProvider(BaseLLMProvider):
                 )
             elif (
                 is_adverse
-                and os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower() == "external"
+                and os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower()
+                == "external"
             ):
                 action = "Final Answer"
                 request_match = re.search(r"HREV-REQ-[A-Z0-9]+", full_user_text)
                 action_input = (
                     "waiting_for_manual_review: Licensed physician review is required "
                     "before the adverse decision can continue."
-                    + (f" review_request_id={request_match.group(0)}" if request_match else "")
+                    + (
+                        f" review_request_id={request_match.group(0)}"
+                        if request_match
+                        else ""
+                    )
                 )
             elif is_adverse and "record_human_review" not in called_tools:
                 action = "record_human_review"

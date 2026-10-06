@@ -1,4 +1,5 @@
 # ruff: noqa: F401
+import json
 import os
 import sys
 import warnings
@@ -26,6 +27,7 @@ from core.registry import (
 )
 from server.acceptance_state_oracle import create_acceptance_state_oracle
 from server.authorization_state_service import (
+    AuthorizationStateService,
     create_authorization_state_blueprint,
     create_healthcare_state_blueprint,
 )
@@ -98,6 +100,7 @@ def get_config() -> Any:
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    authorization_service = AuthorizationStateService()
     setup_middleware(app)
     # Separate acceptance authority: its ledger is never read from or written
     # through evaluator artifacts, traces, or verification internals.
@@ -110,8 +113,8 @@ def create_app() -> Flask:
         )
     )
     # Durable authorization state authority: owns prior-auth ledger, human reviews, and outbox
-    app.register_blueprint(create_authorization_state_blueprint())
-    app.register_blueprint(create_healthcare_state_blueprint())
+    app.register_blueprint(create_authorization_state_blueprint(authorization_service))
+    app.register_blueprint(create_healthcare_state_blueprint(authorization_service))
     app.register_blueprint(create_finance_state_blueprint())
 
     @app.route("/execute_task", methods=["POST"])
@@ -195,6 +198,17 @@ def create_app() -> Flask:
 
             # Execute
             result = temp_agent.execute(data)
+            if result.get("status") == "waiting_for_manual_review":
+                context = data.get("context", {})
+                pending = authorization_service.get_pending_human_review(
+                    context.get("patient_id", ""), context.get("procedure_code", "")
+                )
+                if pending:
+                    workflow = authorization_service.create_physician_review_workflow(
+                        pending["request_id"], data
+                    )
+                    result["review_request_id"] = pending["request_id"]
+                    result["workflow_id"] = workflow["workflow_id"]
             return jsonify(result)
         finally:
             if "temp_agent" in locals() and hasattr(temp_agent, "close"):
@@ -205,6 +219,107 @@ def create_app() -> Flask:
 
                     logging.getLogger(__name__).warning(f"Error closing agent: {e}")
             shim_registry.shutdown_all()
+
+    @app.post("/healthcare/physician-review/<approval_token>/resume")
+    def resume_physician_review_workflow(approval_token: str):
+        """Form target: persist the review, then continue its durable workflow once."""
+        review_request = (
+            authorization_service.get_human_review_request_by_approval_token(
+                approval_token
+            )
+        )
+        if not review_request:
+            return jsonify({"error": "Review link is invalid."}), 404
+        workflow = authorization_service.get_physician_review_workflow_by_request(
+            review_request["request_id"]
+        )
+        if not workflow:
+            return jsonify(
+                {"error": "No paused workflow is associated with this review."}
+            ), 409
+        if workflow["status"] != "WAITING_FOR_REVIEW":
+            return jsonify(
+                {
+                    "status": workflow["status"].lower(),
+                    "workflow_id": workflow["workflow_id"],
+                    "authorization_id": workflow["authorization_id"],
+                }
+            ), 200
+        reviewer_id = request.form.get("reviewer_id", "").strip()
+        reviewer_type = request.form.get("reviewer_type", "").strip()
+        disposition = request.form.get("disposition", "").strip().upper()
+        clinical_notes = request.form.get("clinical_notes", "").strip()
+        if not all([reviewer_id, reviewer_type, disposition, clinical_notes]):
+            return jsonify(
+                {"error": "Reviewer identity, disposition, and rationale are required."}
+            ), 400
+        try:
+            completed = authorization_service.complete_human_review_request(
+                review_request["request_id"],
+                patient_id=review_request["patient_id"],
+                procedure_code=review_request["procedure_code"],
+                reviewer_id=reviewer_id,
+                reviewer_type=reviewer_type,
+                disposition=disposition,
+                clinical_notes=clinical_notes,
+            )
+            if completed["request"]["status"] == "REJECTED":
+                authorization_service.complete_physician_review_workflow(
+                    review_request["request_id"], None, None
+                )
+                return jsonify(
+                    {"status": "skipped", "workflow_id": workflow["workflow_id"]}
+                ), 200
+            from mcp_servers.healthcare_mcp.server import (
+                send_physician_policy_block_email,
+                send_provider_notification,
+                submit_authorization_decision,
+            )
+
+            auth = submit_authorization_decision(
+                review_request["patient_id"],
+                review_request["procedure_code"],
+                disposition,
+            )
+            if auth.get("status") == "failed":
+                authorization_service.set_physician_review_workflow_status(
+                    review_request["request_id"], "BLOCKED_BY_POLICY"
+                )
+                email = send_physician_policy_block_email(
+                    review_request["procedure_code"]
+                )
+                return jsonify(
+                    {
+                        "status": "blocked_by_policy",
+                        "workflow_id": workflow["workflow_id"],
+                        "error": auth.get(
+                            "error", "Authorization continuation failed."
+                        ),
+                        "physician_notification": email,
+                    }
+                ), 409
+            task = json.loads(workflow["task_json"])
+            context = task.get("context", {})
+            notification = send_provider_notification(
+                auth["auth_id"],
+                context.get("notification_channel", "outbox"),
+                context.get("notification_destination", "provider@clinic.example"),
+                f"Prior authorization {review_request['procedure_code']} {disposition} following physician review.",
+            )
+            persisted = authorization_service.complete_physician_review_workflow(
+                review_request["request_id"],
+                auth["auth_id"],
+                notification.get("notification_id"),
+            )
+            return jsonify(
+                {
+                    "status": "completed",
+                    "workflow_id": persisted["workflow_id"],
+                    "authorization_id": auth["auth_id"],
+                }
+            ), 200
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 409
 
     @app.route("/health", methods=["GET"])
     def health():

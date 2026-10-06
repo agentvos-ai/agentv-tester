@@ -147,10 +147,9 @@ class BaseAgent(ABC):
             }
             # External clinical review deliberately returns ordinary application
             # semantics; orchestration products may map this to their own pause.
-            if (
-                os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower() == "external"
-                and "waiting_for_manual_review" in str(output_data)
-            ):
+            if os.environ.get(
+                "PHYSICIAN_REVIEW_MODE", "auto"
+            ).lower() == "external" and "waiting_for_manual_review" in str(output_data):
                 request_match = re.search(r"HREV-REQ-[A-Z0-9]+", str(result))
                 response.update(
                     status="waiting_for_manual_review",
