@@ -25,6 +25,10 @@ class TestHealthcareIntegration(unittest.TestCase):
     """
 
     def setUp(self):
+        # These baseline tests verify the deterministic demo contract.  External
+        # review is covered separately and must not leak from a developer .env.
+        self._previous_review_mode = os.environ.get("PHYSICIAN_REVIEW_MODE")
+        os.environ["PHYSICIAN_REVIEW_MODE"] = "auto"
         os.environ["ACTIVE_LLM"] = "mock"
         os.environ["ACTIVE_VERTICAL"] = "healthcare"
         os.environ["ACTIVE_FRAMEWORK"] = "langchain"
@@ -34,6 +38,10 @@ class TestHealthcareIntegration(unittest.TestCase):
 
     def tearDown(self):
         self.client.post("/healthcare/reset")
+        if self._previous_review_mode is None:
+            os.environ.pop("PHYSICIAN_REVIEW_MODE", None)
+        else:
+            os.environ["PHYSICIAN_REVIEW_MODE"] = self._previous_review_mode
 
     def test_clinical_triage_flow(self):
         payload = {

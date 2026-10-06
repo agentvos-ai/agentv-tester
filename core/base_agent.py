@@ -1,5 +1,7 @@
 import functools
 import logging
+import os
+import re
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -135,7 +137,7 @@ class BaseAgent(ABC):
             output_data = result.get("output", result)
             # In a full industrial impl, we'd try to parse the LLM string into self.output_schema
 
-            return {
+            response = {
                 "status": "success",
                 "task_id": task.get("task_id"),
                 "output": output_data,
@@ -143,5 +145,18 @@ class BaseAgent(ABC):
                 "execution_receipt": result.get("execution_receipt"),
                 "schema_validated": True,
             }
+            # External clinical review deliberately returns ordinary application
+            # semantics; orchestration products may map this to their own pause.
+            if (
+                os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower() == "external"
+                and "waiting_for_manual_review" in str(output_data)
+            ):
+                request_match = re.search(r"HREV-REQ-[A-Z0-9]+", str(result))
+                response.update(
+                    status="waiting_for_manual_review",
+                    message="Licensed physician review is required before the adverse decision can continue.",
+                    review_request_id=request_match.group(0) if request_match else None,
+                )
+            return response
         except Exception as e:
             raise AgentExecutionError(f"Agent execution failed: {e!s}") from e

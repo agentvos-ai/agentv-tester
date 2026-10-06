@@ -47,6 +47,21 @@ For detailed instructions on setup, configuration, and adding new components, se
 2. **Configure Secrets**:
    Create a `.env` file with your API keys (e.g., `GOOGLE_API_KEY`, `OPENAI_API_KEY`).
 
+   For external physician review links sent by WhatsApp, also configure:
+   ```dotenv
+   PHYSICIAN_REVIEW_MODE=external
+   REVIEW_PUBLIC_BASE_URL=https://tester.example.com
+   PHYSICIAN_REVIEW_EMAIL=physician@example.com
+   SMTP_HOST=smtp.example.com
+   SMTP_PORT=587
+   SMTP_USER=notifications@example.com
+   SMTP_PASS=...
+   SMTP_FROM=notifications@example.com
+   ```
+   `REVIEW_PUBLIC_BASE_URL` must be the public HTTPS address that routes to this
+   application's port 8080. The review email includes only an opaque approval link,
+   not patient or clinical information.
+
 3. **Run the Suite**:
    ```bash
    python server/app.py

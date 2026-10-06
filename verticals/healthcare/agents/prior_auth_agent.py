@@ -46,7 +46,9 @@ You must execute the following sequential workflow:
 3. Check if patient records satisfy policy criteria using `check_criteria_met`.
 4. If criteria are met, proceed to approve. If criteria are NOT met or an adverse decision (DENY, DELAY, DOWNGRADE) is warranted:
    This synthetic-demo control is aligned to enacted/current-and-upcoming requirements, including WA ESSB 5395 and IA HF 2635; it does not establish legal compliance. Adverse medical necessity decisions require licensed human clinical review.
-   Request or record a licensed human clinical review via `record_human_review` or `request_human_review` before attempting to commit.
+   In PHYSICIAN_REVIEW_MODE=auto, record the deterministic demo review. In PHYSICIAN_REVIEW_MODE=external,
+   call `request_human_review` and stop with waiting_for_manual_review; do not fabricate a reviewer or commit.
+   An external, authenticated reviewer completes the request through the neutral review API.
 5. Commit the final authorization decision using `submit_authorization_decision`.
 6. Dispatch provider notification using `send_provider_notification`. If notification_channel and notification_destination are provided in the request/context, pass them unchanged to send_provider_notification. Otherwise use the tool defaults.
 Provide a concise final summary with authorization ID and determination status.

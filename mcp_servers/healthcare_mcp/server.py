@@ -1,7 +1,10 @@
 import json
 import logging
+import os
+import smtplib
 import sys
 import uuid
+from email.mime.text import MIMEText
 from pathlib import Path
 
 try:
@@ -242,15 +245,53 @@ def request_human_review(
     patient_id: str, procedure_code: str, reason: str = ""
 ) -> dict:
     """Request human physician review for adverse or complex prior-authorization."""
-    req_id = f"HREV-REQ-{uuid.uuid4().hex[:8].upper()}"
+    request_record = get_state_service().create_human_review_request(
+        patient_id, procedure_code, reason
+    )
+    delivery = _send_review_email(request_record)
     return {
         "status": "pending_physician_review",
-        "request_id": req_id,
+        "request_id": request_record["request_id"],
         "patient_id": patient_id,
         "procedure_code": procedure_code.upper(),
         "reason": reason
         or "Clinical criteria not satisfied; physician adjudication required.",
+        "review_notification": delivery,
     }
+
+
+def _send_review_email(request_record: dict) -> dict:
+    """Deliver the opaque review URL using the existing SMTP configuration."""
+    recipient = os.environ.get("PHYSICIAN_REVIEW_EMAIL")
+    token = request_record.pop("_approval_token", None)
+    if not token:
+        return {"status": "already_requested"}
+    base_url = os.environ.get("REVIEW_PUBLIC_BASE_URL", "http://localhost:8080").rstrip("/")
+    approval_url = f"{base_url}/healthcare/physician-review/{token}"
+    smtp_host = os.environ.get("SMTP_HOST")
+    if not recipient or not smtp_host:
+        return {"status": "not_configured", "message": "Set PHYSICIAN_REVIEW_EMAIL and SMTP_HOST to deliver the review link."}
+    smtp_port = int(os.environ.get("SMTP_PORT", "25"))
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_pass = os.environ.get("SMTP_PASS")
+    message = MIMEText(
+        "A physician review is waiting. Open the secure review form:\n\n"
+        f"{approval_url}\n\n"
+        "Do not forward this link. It contains no patient details."
+    )
+    message["Subject"] = "Physician review required"
+    message["From"] = os.environ.get("SMTP_FROM", smtp_user or "notifications@um-portal.org")
+    message["To"] = recipient
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+            if smtp_user and smtp_pass:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+            server.send_message(message)
+        return {"status": "sent", "transport": "smtp", "destination": recipient}
+    except Exception as exc:
+        logger.warning("Unable to send physician review email: %s", exc)
+        return {"status": "failed", "transport": "smtp", "destination": recipient}
 
 
 @mcp.tool()
@@ -261,17 +302,24 @@ def record_human_review(
     reviewer_type: str = "LICENSED_PHYSICIAN",
     disposition: str = "DENY",
     clinical_notes: str = "Medical necessity criteria not satisfied following clinical peer review",
+    request_id: str | None = None,
 ) -> dict:
     """Record a completed licensed clinical human review artifact in durable state."""
     service = get_state_service()
-    review = service.record_human_review(
-        patient_id=patient_id,
-        procedure_code=procedure_code,
-        reviewer_id=reviewer_id,
-        reviewer_type=reviewer_type,
-        disposition=disposition,
-        clinical_notes=clinical_notes,
-    )
+    if request_id:
+        completed = service.complete_human_review_request(
+            request_id,
+            patient_id=patient_id, procedure_code=procedure_code,
+            reviewer_id=reviewer_id, reviewer_type=reviewer_type,
+            disposition=disposition, clinical_notes=clinical_notes,
+        )
+        review = completed["review"]
+    else:
+        review = service.record_human_review(
+            patient_id=patient_id, procedure_code=procedure_code,
+            reviewer_id=reviewer_id, reviewer_type=reviewer_type,
+            disposition=disposition, clinical_notes=clinical_notes,
+        )
     return {
         "status": "completed",
         "review_id": review["review_id"],
@@ -279,6 +327,19 @@ def record_human_review(
         "reviewer_id": review["reviewer_id"],
         "reviewed_at": review["reviewed_at"],
     }
+
+
+@mcp.tool()
+def get_human_review_status(request_id: str) -> dict:
+    """Return the vendor-neutral durable status of an external physician review."""
+    service = get_state_service()
+    request_record = service.get_human_review_request(request_id)
+    if not request_record:
+        return {"status": "not_found", "request_id": request_id}
+    result = {"request_id": request_id, "status": request_record["status"]}
+    if request_record["status"] == "COMPLETED":
+        result["review"] = service.get_human_review_by_id(request_record["review_id"])
+    return result
 
 
 @mcp.tool()
@@ -317,6 +378,16 @@ def submit_authorization_decision(
     service = get_state_service()
     if clean_decision in ("DENY", "DELAY", "DOWNGRADE") or not criteria_met:
         review = service.get_latest_human_review(patient_id, procedure_code)
+        if os.environ.get("PHYSICIAN_REVIEW_MODE", "auto").lower() == "external":
+            completed_request = service.get_completed_human_review(patient_id, procedure_code)
+            if not completed_request:
+                pending = service.get_pending_human_review(patient_id, procedure_code)
+                return {
+                    "status": "waiting_for_manual_review",
+                    "message": "Licensed physician review is required before the adverse decision can continue.",
+                    "review_request_id": pending["request_id"] if pending else None,
+                }
+            review = service.get_human_review_by_id(completed_request["review_id"])
         if not review:
             return {
                 "status": "failed",

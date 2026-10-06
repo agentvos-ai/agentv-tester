@@ -518,6 +518,7 @@ def get_openapi_spec() -> dict[str, Any]:
                                         },
                                         "clinical_notes": {"type": "string"},
                                         "review_id": {"type": "string"},
+                                        "request_id": {"type": "string", "description": "Required to bind an external review to a pending request."},
                                     },
                                     "required": [
                                         "patient_id",
@@ -551,6 +552,14 @@ def get_openapi_spec() -> dict[str, Any]:
                         },
                         "400": {"description": "Missing required fields"},
                     },
+                }
+            },
+            "/healthcare/reviews/{request_id}": {
+                "get": {
+                    "summary": "Get the durable status of a physician review request",
+                    "operationId": "getHealthcareHumanReviewStatus",
+                    "parameters": [{"name": "request_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+                    "responses": {"200": {"description": "Pending or completed review request"}, "404": {"description": "Request not found"}},
                 }
             },
         },
