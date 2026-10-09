@@ -17,11 +17,7 @@ root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from dotenv import load_dotenv
-
 from server.authorization_state_service import AuthorizationStateService
-
-load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("healthcare-mcp")
@@ -508,6 +504,12 @@ def send_provider_notification(
 
 
 if __name__ == "__main__":
+    # This module is also imported by the Flask review-resume route.  Flask
+    # owns environment loading, while a standalone MCP process must load its
+    # own configuration exactly once.
+    from dotenv import load_dotenv
+
+    load_dotenv()
     import sys
 
     if "sse" in sys.argv:
