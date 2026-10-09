@@ -20,10 +20,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
 from flask import Blueprint, jsonify, render_template_string, request
-
-load_dotenv()
 
 DEFAULT_DB_REL = Path(".agent_workspace") / "db" / "authorization_state.sqlite"
 

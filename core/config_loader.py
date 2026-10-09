@@ -62,18 +62,12 @@ class ConfigLoader:
         )
         llm_name = os.environ.get("ACTIVE_LLM", active_block.get("llm", "gemini"))
 
+        from core.component_loader import ensure_framework
         from core.errors import ConfigError
         from core.registry import get_framework_adapter
 
-        # Ensure all plugins are registered before validation
         try:
-            import frameworks  # noqa: F401
-            import llm_providers  # noqa: F401
-            import shims  # noqa: F401
-        except ImportError:
-            pass
-
-        try:
+            ensure_framework(framework)
             get_framework_adapter(framework)
         except Exception as e:
             raise ConfigError(f"Invalid framework configuration: {e!s}")

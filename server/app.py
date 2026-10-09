@@ -17,6 +17,13 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from core.base_llm import FallbackLLMProvider
+from core.component_loader import (
+    FRAMEWORK_MODULES,
+    LLM_MODULES,
+    ensure_framework,
+    ensure_llm_provider,
+    ensure_vertical_agents,
+)
 from core.config_loader import ConfigLoader
 from core.registry import (
     get_agent_class,
@@ -80,17 +87,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="google.ge
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jsonschema")
 
-# Ensure all plugins are registered by importing their packages
-import frameworks as _frameworks
-import llm_providers as _llm_providers
-import shims as _shims
-import verticals.construction.agents as _construction_agents
-
-# Vertical Agents: Trigger registration for all industrial domains
-import verticals.fintech.agents as _fintech_agents
-import verticals.healthcare.agents as _healthcare_agents
-import verticals.telecom.agents as _telecom_agents
-
 
 def get_config() -> Any:
     """Helper to load the latest config, supporting live reloads."""
@@ -132,6 +128,9 @@ def create_app() -> Flask:
 
         # Dimension 1: LLM (Loaded per request for config flexibility)
         active_llm_cfg = config.llms[config.active_llm]
+        ensure_llm_provider(config.active_llm)
+        for fallback_name in active_llm_cfg.fallbacks:
+            ensure_llm_provider(fallback_name)
 
         def instantiate_provider(name, cfg):
             cls = get_llm_provider(name)
@@ -176,6 +175,10 @@ def create_app() -> Flask:
 
         # Dimension 2: Vertical/Shims (Isolated per request)
         active_vertical = config.verticals[config.active_vertical]
+        # Test and extension callers may supply an already-registered custom
+        # configuration object rather than a catalogue-backed vertical name.
+        if isinstance(config.active_vertical, str):
+            ensure_vertical_agents(config.active_vertical)
         shim_registry = ShimRegistry(enabled_shims=active_vertical.shims)
         shim_registry.reset_all()
 
@@ -380,8 +383,10 @@ def create_app() -> Flask:
         active_vert = config.verticals[config.active_vertical]
 
         # Get all options for dropdowns
-        all_llms = list_llms()
-        all_frameworks = list_frameworks()
+        # The catalog is static and avoids importing every optional SDK merely
+        # to render the configuration dropdowns.
+        all_llms = sorted(LLM_MODULES)
+        all_frameworks = sorted(FRAMEWORK_MODULES)
 
         # List verticals by scanning config directory
         verticals_dir = Path(__file__).parent.parent / "config" / "verticals"
@@ -444,6 +449,18 @@ def create_app() -> Flask:
             return jsonify(
                 {"status": "error", "message": "No valid configuration keys provided"}
             ), 400
+
+        # Fail early for an invalid or unavailable selection without loading
+        # unrelated optional integrations.
+        try:
+            if "framework" in updates:
+                ensure_framework(updates["framework"])
+            if "llm" in updates:
+                ensure_llm_provider(updates["llm"])
+            if "vertical" in updates:
+                ensure_vertical_agents(updates["vertical"])
+        except (ImportError, ValueError) as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 400
 
         # Update suite.yaml to persist changes (follows Master Configuration pattern)
         config_path = Path(__file__).parent.parent / "config" / "suite.yaml"

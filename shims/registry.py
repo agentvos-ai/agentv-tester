@@ -1,5 +1,6 @@
 from typing import Any
 
+from core.component_loader import ensure_shim
 from core.registry import get_shim_class
 from shims import BaseShim
 
@@ -16,6 +17,7 @@ class ShimRegistry:
     def initialize_shims(self):
         """Initializes and sets up all enabled shims."""
         for name in self._enabled_names:
+            ensure_shim(name)
             shim_cls = get_shim_class(name)
             instance = shim_cls(seed=self._seed)
             instance.setup()
