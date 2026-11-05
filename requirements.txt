@@ -1,7 +1,7 @@
 # Core Frameworks
 langchain==1.4.2
 langchain-community==0.4.2
-langgraph==1.2.12
+langgraph==1.2.14
 ag2==1.0.6
 # crewai==1.15.22
 # pydantic-ai==2.48.0
